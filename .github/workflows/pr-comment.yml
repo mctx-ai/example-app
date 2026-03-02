@@ -12,32 +12,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Generate app token
-        id: app-token
-        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+      - uses: mctx-ai/action-pr-comment@bf211dad1398d1d0b3f5036b8c147ad0d2c671f7 # v1.0.0
         with:
           app-id: ${{ secrets.MCTX_BOT_APP_ID }}
           private-key: ${{ secrets.MCTX_BOT_PRIVATE_KEY }}
+          body: |
+            ## 🔀 This repo uses squash merging
 
-      - name: Post PR guide comment
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          gh pr comment ${{ github.event.pull_request.number }} \
-            --repo ${{ github.repository }} \
-            --body "$(cat <<'EOF'
-          ## 🔀 This repo uses squash merging
+            When your PR merges, GitHub squashes all commits into one. The **PR title** becomes the commit subject line and the **PR description** becomes the commit body.
 
-          When your PR merges, GitHub squashes all commits into one. The **PR title** becomes the commit subject line (72-character limit enforced) and the **PR description** becomes the commit body.
+            Releases are cut automatically from commit messages following [Conventional Commits](https://www.conventionalcommits.org).
 
-          Releases are cut automatically from commit messages following [Conventional Commits](https://www.conventionalcommits.org).
+            ### Version bump reference
 
-          ### Version bump reference
-
-          | Prefix | Version bump |
-          |--------|-------------|
-          | `feat:` | Minor (0.X.0) |
-          | `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:`, `build:`, `perf:`, `style:`, `revert:` | Patch (0.0.X) |
-          | `feat!:` or `fix!:` (breaking change) | Major (X.0.0) |
-          EOF
-          )"
+            | Prefix | Version bump |
+            |--------|-------------|
+            | `feat:` | Minor (0.X.0) |
+            | `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:`, `build:`, `perf:`, `style:`, `revert:` | Patch (0.0.X) |
+            | `feat!:` or `fix!:` (breaking change) | Major (X.0.0) |
