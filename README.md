@@ -4,201 +4,154 @@
 
 # Example MCP Server
 
-A complete reference implementation built with [`@mctx-ai/mcp-server`](https://github.com/mctx-ai/mcp-server). Every framework capability in one file — clone it, study it, make it yours.
-
----
-
-## What This Server Does
-
-Demonstrates all four MCP capability types in a single, well-commented file (`src/index.ts`):
-
-| Capability | What's Covered |
-|---|---|
-| **Tools** | Sync string return, object return, generator with progress, LLM sampling |
-| **Resources** | Static URI, dynamic URI template with parameter extraction |
-| **Prompts** | Single-message string, multi-message `conversation()` |
-| **Infrastructure** | Structured logging, environment variables, error handling — [configurable from the mctx.ai dashboard](https://mctx.ai) when deployed |
-
----
-
-## Tools
-
-### `greet`
-
-Greets a person by name. Uses the `GREETING` environment variable (default: `"Hello"`).
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `name` | string | yes | Name to greet (1–100 characters) |
-
-```
-greet(name: "Alice")
-→ "Hello, Alice!"
-```
-
-Set `GREETING=Howdy` to get `"Howdy, Alice!"` instead.
-
-> In production, configure environment variables from the [mctx.ai dashboard](https://mctx.ai) — changes trigger a seamless automatic redeploy.
-
----
-
-### `calculate`
-
-Performs basic arithmetic and returns a structured result object.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `operation` | string | yes | One of: `add`, `subtract`, `multiply`, `divide` |
-| `a` | number | yes | First operand |
-| `b` | number | yes | Second operand |
-
-```
-calculate(operation: "multiply", a: 6, b: 7)
-→ { "operation": "multiply", "a": 6, "b": 7, "result": 42 }
-```
-
-Throws a descriptive error on division by zero.
-
----
-
-### `analyze`
-
-Analyzes a topic and streams progress notifications as it works through three phases.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `topic` | string | yes | Topic to analyze (3–200 characters) |
-
-```
-analyze(topic: "quantum computing")
-→ [progress: 1/3] → [progress: 2/3] → [progress: 3/3]
-→ "Analysis of "quantum computing" complete. Found 42 insights across 7 categories."
-```
-
-Demonstrates `GeneratorToolHandler` with `createProgress()`.
-
----
-
-### `smart-answer`
-
-Answers questions by delegating to the client's LLM via the sampling API. Falls back gracefully when sampling is unavailable (HTTP transport).
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `question` | string | yes | Question to answer (minimum 5 characters) |
-
-```
-smart-answer(question: "What is the capital of France?")
-→ "Question: What is the capital of France?\n\nAnswer: Paris."
-```
-
-Demonstrates the `ask` parameter and bidirectional transport pattern.
-
-This pattern — letting the MCP client supply the LLM — means your server stays stateless and cheap to host. The client brings the model; mctx brings the infrastructure.
-
----
-
-## Resources
-
-### `docs://readme`
-
-Static resource. Returns plain-text server documentation.
-
-```
-Read URI: docs://readme
-→ "Welcome to the example MCP server built with @mctx-ai/mcp-server..."
-```
-
----
-
-### `user://{userId}`
-
-Dynamic resource. Returns a JSON user profile for the given ID.
-
-```
-Read URI: user://42
-→ { "id": "42", "name": "User 42", "joined": "2024-01-01", "plan": "pro" }
-```
-
-Demonstrates URI templates with automatic parameter extraction.
-
----
-
-## Prompts
-
-### `code-review`
-
-Generates a code review request as a single user message.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `code` | string | yes | Code to review |
-| `language` | string | no | Programming language label |
-
-```
-code-review(code: "const x = eval(input)", language: "javascript")
-→ "Please review this javascript for bugs, security issues, and improvements:..."
-```
-
----
-
-### `debug`
-
-Builds a structured multi-turn conversation to guide debugging.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `error` | string | yes | Error message or description |
-| `context` | string | no | Stack trace or additional logs (max 5,000 characters) |
-
-```
-debug(error: "TypeError: Cannot read properties of undefined")
-→ [user] "I'm seeing this error: TypeError: Cannot read..."
-→ [assistant] "I will analyze the error and provide step-by-step debugging guidance."
-```
-
-Demonstrates `conversation()` for multi-role dialogue.
+A GitHub template for building MCP servers with [`@mctx-ai/mcp-server`](https://github.com/mctx-ai/mcp-server). Clone it, run one script, and you have a working server ready to develop and deploy.
 
 ---
 
 ## Quick Start
 
+**1. Create your repo from this template**
+
+Click **Use this template** on GitHub, then clone your new repo:
+
 ```bash
-git clone https://github.com/mctx-ai/example-mcp-server.git
-cd example-mcp-server
-npm install
+git clone https://github.com/your-username/your-repo.git
+cd your-repo
+```
+
+**2. Run the setup script**
+
+```bash
+./setup.sh
+```
+
+**3. Start developing**
+
+```bash
 npm run dev
 ```
 
-The dev server runs esbuild in watch mode and hot-reloads via `mctx-dev` on every rebuild.
+---
 
-**Test an environment variable locally:**
+## What You Get
+
+- **Build tooling** — esbuild bundler with watch mode and hot reload via `mctx-dev`
+- **Test suite** — Vitest with JSON-RPC 2.0 helpers ready to use
+- **Linting and formatting** — ESLint 9 with TypeScript plugin and Prettier
+- **CI/CD pipeline** — GitHub Actions workflow for automated testing and deployment
+- **Example MCP server** — Working implementation of every framework capability in `src/index.ts`
+
+---
+
+## Setup Script
+
+`setup.sh` runs once after you create a repo from this template. It:
+
+1. Prompts for your **project name** (used as the npm package name) and **description**
+2. Asks whether to **keep the example code** in `src/index.ts` or replace it with a minimal skeleton
+3. Updates `package.json` with your project name and description
+4. Rewrites `README.md` with a clean starting point for your project
+5. Runs `npm install` to install dependencies
+6. Creates an initial git commit with all changes
+7. **Deletes itself** — `setup.sh` is removed after it runs
+
+If you keep the examples, `src/index.ts` is unchanged and you can study and modify it. If you start empty, you get a minimal skeleton with a single `hello` tool to build from.
+
+---
+
+## Development Commands
+
+### Build
+
+```bash
+npm run build
+```
+
+Bundles `src/index.ts` to `dist/index.js` using esbuild (minified ESM output).
+
+### Dev Server
+
+```bash
+npm run dev
+```
+
+Runs parallel watch mode:
+- `dev:build` — esbuild watch (rebuilds on source changes)
+- `dev:server` — mctx-dev hot-reloads server on rebuild
+
+**Test environment variables during dev:**
 
 ```bash
 GREETING="Howdy" npm run dev
 ```
 
-**Deploy to [mctx.ai](https://mctx.ai):**
+### Testing
 
-1. Visit [mctx.ai](https://mctx.ai) and connect your repository
-2. Set any environment variables (e.g., `GREETING`) in the dashboard
-3. Deploy — mctx reads `package.json` for server configuration
+```bash
+# Run all tests
+npm test
 
-mctx handles TLS, scaling, and uptime. You keep the code. Set your price and get paid when other developers use your server.
+# Run tests in watch mode
+npm test -- --watch
+
+# Run specific test file
+npm test src/index.test.ts
+
+# Run tests matching pattern
+npm test -- -t "greet"
+```
+
+### Linting
+
+```bash
+# Check for issues
+npm run lint
+```
+
+### Formatting
+
+```bash
+# Format all files
+npm run format
+
+# Check formatting without modifying
+npm run format:check
+```
 
 ---
 
-## Prompt Ideas
+## Environment Variables
 
-Use these with any MCP client connected to this server:
+**`GREETING`** — Customizes the greeting message in the `greet` tool.
+- **Default:** `"Hello"`
+- **Example:** `GREETING="Howdy"` produces `"Howdy, Alice!"`
 
-- **"Greet the whole team"** — Call `greet` in a loop with each team member's name
-- **"Check my math"** — Use `calculate` to verify arithmetic in a document or spreadsheet
-- **"Deep-dive on a topic"** — Call `analyze` and watch real-time progress stream in
-- **"Ask anything"** — Use `smart-answer` to route questions through the client's LLM
-- **"Review my PR diff"** — Pass a code snippet to `code-review` with the language set
-- **"Help me fix this stack trace"** — Feed an error and logs into `debug` for guided triage
-- **"Look up a user"** — Read `user://{id}` to fetch a profile by ID
+Set environment variables in the [mctx.ai dashboard](https://mctx.ai) when deployed — changes trigger a seamless automatic redeploy.
+
+---
+
+## What This Template Demonstrates
+
+The example server in `src/index.ts` covers every capability type the framework supports:
+
+| Capability | Patterns Demonstrated |
+|---|---|
+| **Tools** | Sync string return (`greet`), object return (`calculate`), generator with progress (`analyze`), LLM sampling (`smart-answer`) |
+| **Resources** | Static URI (`docs://readme`), dynamic URI template with parameter extraction (`user://{userId}`) |
+| **Prompts** | Single-message string (`code-review`), multi-message `conversation()` (`debug`) |
+| **Infrastructure** | Structured logging, environment variable configuration, error handling |
+
+Every capability is in one file with comments explaining the pattern. Start there when building your own tools.
+
+---
+
+## Deploy
+
+1. Visit [mctx.ai](https://mctx.ai) and connect your repository
+2. Set any environment variables in the dashboard
+3. Deploy — mctx reads `package.json` for server configuration
+
+mctx handles TLS, scaling, and uptime. You keep the code. Set your price and get paid when other developers use your server.
 
 ---
 
