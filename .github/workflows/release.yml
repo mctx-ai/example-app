@@ -184,7 +184,7 @@ jobs:
               --body "Automated version bump after release v${NEW_VERSION}."
           fi
 
-          gh pr merge --auto --squash --head "$bump_branch" --repo "${{ github.repository }}"
+          gh pr merge --auto --squash "$bump_branch" --repo "${{ github.repository }}"
 
       - name: Warn if version sync to main failed
         if: steps.bump-main.outcome == 'failure'
