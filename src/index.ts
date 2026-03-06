@@ -65,7 +65,7 @@ const greet: ToolHandler = (args) => {
   return `${greeting}, ${trimmedName}!`;
 };
 greet.description =
-  'Greets a person by name using the GREETING environment variable (default: "Hello")';
+  'Greets a person by name with a personalized message using the GREETING environment variable (default: "Hello")';
 greet.input = {
   name: T.string({
     required: true,
