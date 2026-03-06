@@ -1,6 +1,6 @@
 {
   "name": "example-mcp-server",
-  "version": "0.3.48",
+  "version": "0.3.49",
   "description": "A reference MCP server built with @mctx-ai/mcp-server, showcasing the full range of framework capabilities. Provides tools for personalized greetings, mathematical calculations, progress-tracked data analysis, and LLM-assisted Q&A via sampling. Exposes resources through both static URIs and dynamic URI templates, and includes prompt templates for code review and debugging assistance. Features structured logging and environment variable configuration throughout. Designed as a working example and starting point — explore the source at github.com/mctx-ai/example-mcp-server or use the @mctx-ai/mcp-server framework to build your own.",
   "homepage": "https://mctx.ai",
   "type": "module",
@@ -16,12 +16,12 @@
     "format:check": "prettier --check src/"
   },
   "dependencies": {
-    "@mctx-ai/mcp-server": "^0.5.4"
+    "@mctx-ai/mcp-server": "^0.6.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
-    "@mctx-ai/mcp-dev": "^0.5.4",
-    "@types/node": "^25.3.0",
+    "@mctx-ai/mcp-dev": "^0.5.5",
+    "@types/node": "^25.3.5",
     "esbuild": "^0.27.3",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^10.1.8",
