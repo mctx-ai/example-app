@@ -141,7 +141,6 @@ jobs:
         continue-on-error: true
         env:
           TOKEN: ${{ steps.app-token.outputs.token }}
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           NEW_VERSION: ${{ steps.version.outputs.new_version }}
         run: |
           if ! echo "$NEW_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
@@ -152,11 +151,8 @@ jobs:
           git config user.name "mctx-bot[bot]"
           git config user.email "mctx-bot[bot]@users.noreply.github.com"
 
-          bump_branch="chore/bump-version-${NEW_VERSION}"
-
           git checkout main
           git pull --rebase origin main
-          git checkout -b "$bump_branch"
 
           jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.json.tmp && mv package.json.tmp package.json
 
@@ -171,20 +167,7 @@ jobs:
           fi
 
           git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git"
-          git push origin "$bump_branch"
-
-          existing_pr=$(gh pr list --head "$bump_branch" --repo "${{ github.repository }}" --json number --jq '.[0].number // empty')
-          if [ -n "$existing_pr" ]; then
-            echo "PR #${existing_pr} already exists for ${bump_branch}. Skipping creation."
-          else
-            gh pr create \
-              --head "$bump_branch" \
-              --base main \
-              --title "chore: bump version to ${NEW_VERSION}" \
-              --body "Automated version bump after release v${NEW_VERSION}."
-          fi
-
-          gh pr merge --auto --squash "$bump_branch" --repo "${{ github.repository }}"
+          git push origin main
 
       - name: Warn if version sync to main failed
         if: steps.bump-main.outcome == 'failure'
