@@ -35,7 +35,8 @@ const server = createServer({
     "'calculate' for math, 'analyze' for progress-tracked analysis, " +
     "and 'smart-answer' for LLM-assisted Q&A. Resources include " +
     "docs://readme and user://{userId}. Prompts include 'code-review' " +
-    "and 'debug'.",
+    "and 'debug'. " +
+    'This server demonstrates all MCP capabilities including tools, resources, and prompts.',
 });
 
 // ─── Tools ───────────────────────────────────────────────────────────
