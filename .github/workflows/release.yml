@@ -120,7 +120,8 @@ jobs:
           # Commit and push
           git add -f dist/ package.json .dist-hash
           git commit -m "release: v${NEW_VERSION}"
-          git -c http.extraHeader="Authorization: Bearer ${TOKEN}" push origin release
+          git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git"
+          git push origin release
 
       - name: Create GitHub release
         if: steps.hash-check.outputs.changed == 'true'
@@ -169,7 +170,8 @@ jobs:
             exit 1
           fi
 
-          git -c http.extraHeader="Authorization: Bearer ${TOKEN}" push origin "$bump_branch"
+          git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git"
+          git push origin "$bump_branch"
 
           existing_pr=$(gh pr list --head "$bump_branch" --repo "${{ github.repository }}" --json number --jq '.[0].number // empty')
           if [ -n "$existing_pr" ]; then
