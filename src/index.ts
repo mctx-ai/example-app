@@ -101,7 +101,7 @@ const calculate: ToolHandler = (args) => {
 
   return { operation, a, b, result: ops[operation] };
 };
-calculate.description = 'Performs arithmetic operations';
+calculate.description = 'Performs arithmetic operations with support for basic arithmetic';
 calculate.input = {
   operation: T.string({
     required: true,
