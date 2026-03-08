@@ -60,7 +60,7 @@ prompt_with_default() {
     printf "${BOLD}  %s${RESET}: " "$question"
   fi
 
-  read -r input
+  read -r input || true
   if [ -z "$input" ] && [ -n "$default" ]; then
     input="$default"
   fi
@@ -140,6 +140,50 @@ case "$keep_examples" in
     keep_examples="y"
     ;;
 esac
+
+printf "\n"
+
+# Bot configuration for release workflow
+printf "${BOLD}  Release Workflow Bot${RESET}\n"
+printf "  ─────────────────────\n"
+configure_bot=""
+prompt_with_default "Do you want to configure a GitHub App bot for the release workflow?" "Y" configure_bot
+case "$configure_bot" in
+  [Nn]|[Nn][Oo]) configure_bot="n" ;;
+  *)              configure_bot="y" ;;
+esac
+
+bot_name=""
+if [ "$configure_bot" = "y" ]; then
+  while [ -z "$bot_name" ]; do
+    prompt_with_default "Bot name (e.g. my-bot)" "" bot_name
+    if [ -z "$bot_name" ]; then
+      error "Bot name is required."
+    fi
+  done
+fi
+
+printf "\n"
+
+# CODEOWNERS setup
+printf "${BOLD}  CODEOWNERS${RESET}\n"
+printf "  ──────────\n"
+codeowners_choice=""
+prompt_with_default "Do you want to set up a CODEOWNERS file?" "N" codeowners_choice
+case "$codeowners_choice" in
+  [Yy]|[Yy][Ee][Ss]) codeowners_choice="y" ;;
+  *)                  codeowners_choice="n" ;;
+esac
+
+codeowners_owner=""
+if [ "$codeowners_choice" = "y" ]; then
+  while [ -z "$codeowners_owner" ]; do
+    prompt_with_default "GitHub username or team (e.g. @myorg/myteam or @username)" "" codeowners_owner
+    if [ -z "$codeowners_owner" ]; then
+      error "Owner is required."
+    fi
+  done
+fi
 
 printf "\n"
 
@@ -311,6 +355,12 @@ mctx handles TLS, scaling, and uptime. You keep the code. Set your price and get
 
 ---
 
+## Release Process
+
+This project uses an automated release workflow with a main/release dual-branch model. See [RELEASE.md](RELEASE.md) for setup instructions.
+
+---
+
 ## Learn More
 
 - [`@mctx-ai/mcp-server`](https://github.com/mctx-ai/mcp-server) — Framework documentation and API reference
@@ -400,12 +450,134 @@ export default { fetch: server.fetch };
 INDEX_EOF
 
   success "src/index.ts replaced with minimal skeleton."
+
+  info "Replacing src/index.test.ts with minimal test skeleton..."
+
+  cat > "$repo_root/src/index.test.ts" << 'TEST_EOF'
+import { describe, test, expect } from 'vitest';
+import server from './index.js';
+
+// Helper to create JSON-RPC 2.0 request
+function createRequest(method: string, params: Record<string, unknown> = {}) {
+  return new Request('http://localhost', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method,
+      params,
+    }),
+  });
+}
+
+// Helper to parse JSON-RPC response
+async function getResponse(response: Response) {
+  const data = await response.json();
+  return data;
+}
+
+// ─── Tools Tests ────────────────────────────────────────────────────
+
+describe('Tool: hello', () => {
+  test('should greet a person by name', async () => {
+    const req = createRequest('tools/call', {
+      name: 'hello',
+      arguments: { name: 'Alice' },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result.content[0].text).toBe('Hello, Alice!');
+  });
+
+  test('should handle different names', async () => {
+    const req = createRequest('tools/call', {
+      name: 'hello',
+      arguments: { name: 'Bob' },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result.content[0].text).toBe('Hello, Bob!');
+  });
+});
+
+// ─── Server Capabilities Tests ─────────────────────────────────────
+
+describe('Server capabilities', () => {
+  test('should list the hello tool', async () => {
+    const req = createRequest('tools/list');
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    const toolNames = data.result.tools.map((t: { name: string }) => t.name);
+    expect(toolNames).toContain('hello');
+  });
+});
+TEST_EOF
+
+  success "src/index.test.ts replaced with minimal test skeleton."
 fi
+
+# ─── Remove mctx-specific GitHub Actions workflows ───────────────────────────
+
+info "Removing mctx-specific GitHub Actions workflows..."
+rm -f \
+  "$repo_root/.github/workflows/pr-comment.yml" \
+  "$repo_root/.github/workflows/pr-title.yml" \
+  "$repo_root/.github/workflows/dependabot-auto-merge.yml"
+success "mctx-specific workflows removed."
+
+# ─── Configure release workflow bot ──────────────────────────────────────────
+
+release_yml="$repo_root/.github/workflows/release.yml"
+
+if [ "$configure_bot" = "n" ]; then
+  # Replace secret names with generic ones and use a placeholder bot name
+  sed -i.bak "s/MCTX_BOT_APP_ID/BOT_APP_ID/g; s/MCTX_BOT_PRIVATE_KEY/BOT_PRIVATE_KEY/g; s/mctx-bot\[bot\]/your-bot[bot]/g" "$release_yml"
+  rm -f "$release_yml.bak"
+  warn "Skipped bot configuration. Update 'your-bot[bot]' in .github/workflows/release.yml and set BOT_APP_ID / BOT_PRIVATE_KEY secrets before using the release workflow."
+else
+  escaped_bot_name=$(printf '%s\n' "$bot_name" | sed 's/[&/\]/\\&/g')
+  sed -i.bak "s/MCTX_BOT_APP_ID/BOT_APP_ID/g; s/MCTX_BOT_PRIVATE_KEY/BOT_PRIVATE_KEY/g; s/mctx-bot\[bot\]/${escaped_bot_name}[bot]/g" "$release_yml"
+  rm -f "$release_yml.bak"
+  success "release.yml configured with bot '${bot_name}[bot]' and generic secret names (BOT_APP_ID / BOT_PRIVATE_KEY)."
+fi
+
+# ─── CODEOWNERS handling ──────────────────────────────────────────────────────
+
+if [ "$codeowners_choice" = "y" ]; then
+  printf '* %s\n' "$codeowners_owner" > "$repo_root/CODEOWNERS"
+  success "CODEOWNERS created with owner: $codeowners_owner"
+else
+  rm -f "$repo_root/CODEOWNERS"
+  success "CODEOWNERS removed."
+fi
+
+# ─── Strip homepage from package.json ────────────────────────────────────────
+
+info "Removing homepage field from package.json..."
+
+if command -v jq >/dev/null 2>&1; then
+  # jq is available: precise JSON update
+  tmp_file="$(mktemp)"
+  jq 'del(.homepage)' "$package_json" > "$tmp_file"
+  mv "$tmp_file" "$package_json"
+else
+  # jq not available: sed fallback
+  warn "jq not found — using sed to remove homepage from package.json."
+  warn "Verify the result looks correct before committing."
+  sed -i.bak3 '/"homepage":/d' "$package_json"
+  rm -f "$package_json.bak3"
+fi
+
+success "homepage field removed from package.json."
 
 # ─── npm install ──────────────────────────────────────────────────────────────
 
 info "Running npm install..."
-npm install --prefix "$repo_root" --silent
+npm install --prefix "$repo_root" --loglevel=error
 success "Dependencies installed."
 
 # ─── Initial git commit ───────────────────────────────────────────────────────
@@ -415,16 +587,34 @@ info "Staging changes and creating initial commit..."
 # Remove this script before committing
 rm -f "$script_path"
 
-# Stage only the files this script touched, plus the deletion of setup.sh itself
+# Stage modified and new files this script touched
 git -C "$repo_root" add \
   package.json \
   package-lock.json \
-  README.md
+  README.md \
+  RELEASE.md
 if [ "$keep_examples" = "n" ]; then
-  git -C "$repo_root" add src/index.ts
+  git -C "$repo_root" add src/index.ts src/index.test.ts
 fi
-# Stage the deletion of this setup script
-git -C "$repo_root" rm --cached --ignore-unmatch setup.sh >/dev/null 2>&1 || true
+
+# Stage deletions: removed workflows and this setup script.
+# --ignore-unmatch handles files that may not exist in all template forks.
+git -C "$repo_root" rm --cached --ignore-unmatch \
+  .github/workflows/pr-comment.yml \
+  .github/workflows/pr-title.yml \
+  .github/workflows/dependabot-auto-merge.yml \
+  setup.sh \
+  >/dev/null 2>&1 || true
+
+# Stage the updated release workflow
+git -C "$repo_root" add .github/workflows/release.yml
+
+# Stage CODEOWNERS: either the new file (user opted in) or its deletion (user opted out).
+if [ -f "$repo_root/CODEOWNERS" ]; then
+  git -C "$repo_root" add CODEOWNERS
+else
+  git -C "$repo_root" rm --cached --ignore-unmatch CODEOWNERS >/dev/null 2>&1 || true
+fi
 
 git -C "$repo_root" commit -m "Initial project setup from template"
 
@@ -440,4 +630,5 @@ info "  1. Review and update src/index.ts with your tools"
 info "  2. Update README.md with your server's capabilities"
 info "  3. Run 'npm run dev' to start the development server"
 info "  4. Deploy at https://mctx.ai when ready"
+info "  5. Set up your release workflow — see RELEASE.md"
 printf "\n"
