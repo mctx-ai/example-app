@@ -78,22 +78,42 @@ This is the same pattern used by GitHub Actions JavaScript actions: the compiled
 
 ## Release Pipeline
 
-Pushing to `main` triggers the release workflow in CI. That workflow:
-1. Runs tests and linting
-2. Commits `dist/index.js`, `package.json`, and `README.md` to the `release` branch
+**Dual-branch model:** `main` (development) → `release` (production). The `release` branch is fully managed by CI — never edit it directly. All changes flow through `main` via pull request.
 
-**mctx deploys from the `release` branch**, not from `main`. The `release` branch is fully managed by CI — never edit it directly. All changes flow through `main` via pull request.
+Pushing to `main` triggers `release.yml`, which:
+1. Builds `dist/index.js` from source
+2. Computes SHA-256 hash and compares to `.dist-hash` on `release` — exits early if unchanged (no runtime changes)
+3. Determines version bump from commit message using conventional commits (see below)
+4. Pushes build, updated `package.json`, `README.md`, and `.dist-hash` to `release`
+5. Creates a GitHub Release tagged at the new version
+6. Bumps `package.json` version on `main` with a `[skip ci]` commit
 
-**Version bump process** (admin-only — requires branch protection bypass, Karl only):
-1. Update `version` in `package.json` on `main` and run `npm install` to sync `package-lock.json`
-2. Commit on `main`: `chore: bump version to X.Y.Z`
-3. Cherry-pick that commit onto `release`
-4. Push both `main` and `release` branches
+### Conventional Commits
 
-Notes:
-- No code changes in a version bump commit — only `version` in `package.json` and the `package-lock.json` sync from running `npm install`
-- Always wait for any in-flight deployments to finish before pushing
-- Always commit on `main` first, then cherry-pick to `release` — not the reverse
+Version bumps are determined automatically from the commit message on `main`:
+
+| Commit prefix | Version bump | Example |
+|---------------|-------------|---------|
+| `feat!:` or `fix!:` | **Major** | `feat!: redesign tool API` |
+| `feat:` | **Minor** | `feat: add new resource` |
+| Everything else | **Patch** | `fix: handle edge case`, `chore: update deps` |
+
+**This repo uses squash merging.** PR title becomes the commit subject, PR description becomes the commit body. Therefore, **PR titles must follow conventional commit format** — enforced by the `pr-title.yml` workflow.
+
+### Manual Version Bumps
+
+The `admin/version` script allows manual version bumps (admin-only — requires branch protection bypass):
+
+```bash
+./admin/version              # Show current version
+./admin/version patch        # 1.2.3 → 1.2.4
+./admin/version minor        # 1.2.3 → 1.3.0
+./admin/version major        # 1.2.3 → 2.0.0
+./admin/version 2.0.0        # Set explicit version
+./admin/version patch --push  # Bump and push both branches
+```
+
+The script updates `package.json`, runs `npm install` to sync `package-lock.json`, and commits both independently on `main` and `release` to avoid merge conflicts. Must be run from `main` with a clean working tree. See `RELEASE.md` for full setup details (GitHub App, branch protection, PAT alternative).
 
 ---
 
@@ -191,7 +211,7 @@ npm test src/index.test.ts
 npm test -- -t "greet"
 ```
 
-Tests use Vitest with JSON-RPC 2.0 request helpers. Each test creates a `Request` object, calls `server.fetch()`, and validates the JSON-RPC response.
+Tests use Vitest (no separate config file — runs via `vitest run` in package.json). Each test creates a `Request` object, calls `server.fetch()`, and validates the JSON-RPC response.
 
 ### Linting
 ```bash
@@ -213,7 +233,7 @@ npm run format
 npm run format:check
 ```
 
-Prettier configuration: `singleQuote: true` (in `.prettierrc`).
+Prettier configuration: `singleQuote: true`, `printWidth: 100` (in `.prettierrc`).
 
 ---
 
@@ -253,6 +273,30 @@ Tests organized by capability type:
 - **Server Capabilities** — List via `tools/list`, `resources/list`, `prompts/list`
 
 Error handling tests verify `result.isError === true` and error message content.
+
+---
+
+## CI Checks on Pull Requests
+
+PRs to `main` run several automated checks:
+
+- **test.yml** — `npm ci` + `npm test` (Node 22)
+- **check-dist.yml** — Rebuilds `dist/` from source and fails if the committed `dist/index.js` doesn't match. **You must run `npm run build` and commit `dist/index.js` before opening a PR.**
+- **pr-title.yml** — Validates PR title follows conventional commit format
+- **pr-comment.yml** — Posts a comment explaining squash merge behavior and version bump rules
+- **dependabot-auto-merge.yml** — Auto-merges Dependabot PRs
+
+---
+
+## Template Setup
+
+This repo is a GitHub template. When cloned, run `setup.sh` to initialize:
+
+```bash
+./setup.sh
+```
+
+Prompts for project name and description, optionally strips example code to a minimal skeleton, configures the release bot, runs `npm ci`, creates an initial commit, and deletes itself.
 
 ---
 
