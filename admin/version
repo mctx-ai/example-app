@@ -100,9 +100,8 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
 fi
 
 if ! git show-ref --quiet "refs/heads/$RELEASE_BRANCH"; then
-  echo "Error: local branch '$RELEASE_BRANCH' does not exist."
-  echo "Run: git fetch origin $RELEASE_BRANCH:$RELEASE_BRANCH"
-  exit 1
+  echo "Local branch '$RELEASE_BRANCH' not found — fetching from origin..."
+  git fetch origin "$RELEASE_BRANCH:$RELEASE_BRANCH"
 fi
 
 # ---------------------------------------------------------------------------
@@ -180,6 +179,9 @@ git commit -m "$commit_message"
 echo ""
 echo "Switching to '$RELEASE_BRANCH'..."
 git switch "$RELEASE_BRANCH"
+
+echo "Pulling latest '$RELEASE_BRANCH' from origin..."
+git pull origin "$RELEASE_BRANCH"
 
 echo "Updating package.json on '$RELEASE_BRANCH'..."
 npm pkg set version="$next_version"
