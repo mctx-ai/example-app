@@ -14,10 +14,10 @@ This project uses a **dual-branch model**:
 When a commit lands on `main`, the `release.yml` workflow runs automatically:
 
 1. Builds `dist/index.js` from source
-2. Computes a SHA-256 hash of the new build and compares it to the hash stored in `.dist-hash` on the `release` branch
+2. Computes a combined SHA-256 hash across `dist/index.js`, `package.json`, and `README.md`, then compares it to the hash stored in `.release-hash` on the `release` branch
 3. If the hash is unchanged, the workflow exits early — no new release is created
 4. If the hash changed, the workflow determines the version bump from the commit message (conventional commits: `feat!:` → major, `feat:` → minor, everything else → patch)
-5. Pushes the new build, updated `package.json`, and `.dist-hash` to the `release` branch
+5. Pushes the new build, updated `package.json`, `README.md`, and `.release-hash` to the `release` branch
 6. Creates a GitHub Release tagged at the new version
 7. Bumps the version in `package.json` on `main` with a `[skip ci]` commit
 
@@ -92,7 +92,7 @@ Once the branch exists, set up branch protection:
 - Require pull requests before merging (or restrict direct pushes to the bot only)
 - Add the bot as a bypass actor so the workflow can push directly
 
-The first time the workflow runs with actual runtime changes, it will create `.dist-hash` on the `release` branch automatically. Subsequent runs use that file to detect whether a new release is needed.
+The first time the workflow runs with actual runtime changes, it will create `.release-hash` on the `release` branch automatically. Subsequent runs use that file to detect whether a new release is needed.
 
 ---
 

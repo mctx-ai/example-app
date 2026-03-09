@@ -82,9 +82,9 @@ This is the same pattern used by GitHub Actions JavaScript actions: the compiled
 
 Pushing to `main` triggers `release.yml`, which:
 1. Builds `dist/index.js` from source
-2. Computes SHA-256 hash and compares to `.dist-hash` on `release` — exits early if unchanged (no runtime changes)
+2. Computes a combined SHA-256 hash across `dist/index.js`, `package.json`, and `README.md`, then compares to `.release-hash` on `release` — exits early if unchanged (no runtime changes)
 3. Determines version bump from commit message using conventional commits (see below)
-4. Pushes build, updated `package.json`, `README.md`, and `.dist-hash` to `release`
+4. Pushes build, updated `package.json`, `README.md`, and `.release-hash` to `release`
 5. Creates a GitHub Release tagged at the new version
 6. Bumps `package.json` version on `main` with a `[skip ci]` commit
 
