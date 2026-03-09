@@ -52,8 +52,11 @@ const server = createServer({
 
 /**
  * Simplest tool pattern: receive args, return a string.
+ *
  * Demonstrates environment variable usage via GREETING env var.
  * Set GREETING in the mctx dashboard to customize the greeting message.
+ * Reads process.env lazily inside the handler (not at module scope) because
+ * env vars may not be available at import time in some runtimes.
  */
 const greet: ToolHandler = (args) => {
   const { name } = args as { name: string };
