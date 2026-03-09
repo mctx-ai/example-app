@@ -77,6 +77,16 @@ greet.input = {
     maxLength: 100,
   }),
 };
+// readOnlyHint: true  — constructs a string from args and env; touches no external state
+// destructiveHint: false — cannot modify or delete anything
+// openWorldHint: false — reads only process.env, never the network or filesystem
+// idempotentHint: true  — same name + same GREETING always produces the same output
+greet.annotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: false,
+  idempotentHint: true,
+};
 server.tool('greet', greet);
 
 /** Object returns are auto-serialized to JSON. Throw errors to signal failure. */
@@ -114,6 +124,16 @@ calculate.input = {
   a: T.number({ required: true, description: 'First operand' }),
   b: T.number({ required: true, description: 'Second operand' }),
 };
+// readOnlyHint: true  — pure math; no state is read from or written to external systems
+// destructiveHint: false — arithmetic cannot remove or corrupt any data
+// openWorldHint: false — entirely self-contained; no I/O of any kind
+// idempotentHint: true  — f(a, b) always returns the same result for the same inputs
+calculate.annotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: false,
+  idempotentHint: true,
+};
 server.tool('calculate', calculate);
 
 /**
@@ -149,6 +169,17 @@ analyze.input = {
     minLength: 3,
     maxLength: 200,
   }),
+};
+// readOnlyHint: true  — local computation only; yields progress but writes nothing
+// destructiveHint: false — analysis produces output, never deletes or mutates anything
+// openWorldHint: false — no network calls or external system access
+// idempotentHint omitted — the simulated analysis result is constant here, but real
+//   analysis tools often incorporate live data sources whose content changes over time;
+//   omitting the hint leaves clients free to decide retry/caching policy themselves
+analyze.annotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: false,
 };
 server.tool('analyze', analyze);
 
@@ -204,6 +235,18 @@ smartAnswer.input = {
     description: 'Question to answer',
     minLength: 5,
   }),
+};
+// readOnlyHint: true  — reads a question and returns an answer; no state is modified
+// destructiveHint: false — the tool produces text; it cannot remove or corrupt anything
+// openWorldHint: true  — delegates to the client's LLM via ask(), crossing a network
+//   boundary into an external AI system whose outputs are non-deterministic
+// idempotentHint omitted — LLM sampling is inherently non-deterministic; the same
+//   question can produce different answers on every call, so callers must not assume
+//   retries are safe to deduplicate
+smartAnswer.annotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: true,
 };
 server.tool('smart-answer', smartAnswer);
 
