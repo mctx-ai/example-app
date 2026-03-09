@@ -28,8 +28,14 @@ jobs:
       - name: Check for runtime changes
         id: hash-check
         run: |
-          NEW_HASH=$(sha256sum dist/index.js | cut -d' ' -f1)
-          OLD_HASH=$(git show origin/release:.dist-hash 2>/dev/null || echo "none")
+          # Hash covers dist/index.js, package.json, and README.md.
+          # package.json is hashed here using the current main version; the release
+          # branch stores the post-version-bump hash (written after the bump in
+          # "Push to release branch"). The [skip ci] version sync back to main
+          # ensures main's package.json matches the release branch version on the
+          # next run, so the hashes align and no false-positive change is detected.
+          NEW_HASH=$(cat dist/index.js package.json README.md | sha256sum | cut -d' ' -f1)
+          OLD_HASH=$(git show origin/release:.release-hash 2>/dev/null || git show origin/release:.dist-hash 2>/dev/null || echo "none")
           echo "new_hash=$NEW_HASH" >> $GITHUB_OUTPUT
           echo "old_hash=$OLD_HASH" >> $GITHUB_OUTPUT
           if [ "$NEW_HASH" = "$OLD_HASH" ]; then
@@ -109,18 +115,25 @@ jobs:
           git checkout release
 
           # Copy artifacts back
-          cp -r /tmp/dist-release/* dist/ 2>/dev/null || mkdir -p dist && cp -r /tmp/dist-release/* dist/
+          cp -r /tmp/dist-release/* dist/ 2>/dev/null || { mkdir -p dist && cp -r /tmp/dist-release/* dist/; }
           cp /tmp/package-release.json package.json
           cp /tmp/README-release.md README.md
 
           # Update package.json version
           jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.json.tmp && mv package.json.tmp package.json
 
-          # Write dist hash
-          echo "$NEW_HASH" > .dist-hash
+          # Write combined hash (computed after version bump so it reflects the
+          # post-bump state of package.json that will exist on the release branch
+          # and will be synced back to main via the [skip ci] commit).
+          cat dist/index.js package.json README.md | sha256sum | cut -d' ' -f1 > .release-hash
+
+          # Remove legacy .dist-hash if it exists (migration cleanup)
+          if [ -f .dist-hash ]; then
+            git rm -f .dist-hash
+          fi
 
           # Commit and push
-          git add -f dist/ package.json README.md .dist-hash
+          git add -f dist/ package.json README.md .release-hash
           git commit -m "release: v${NEW_VERSION}"
           git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git"
           git push origin release
