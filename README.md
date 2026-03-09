@@ -98,6 +98,57 @@ This pattern — letting the MCP client supply the LLM — means your server sta
 
 ---
 
+## Tool Annotations
+
+MCP clients — including Claude Desktop, Cursor, and apps submitted to the MCP app store — use annotation hints to decide how to surface permission prompts and safety warnings. Setting them correctly affects the user experience your subscribers see when they invoke your tools.
+
+### The Four Hints
+
+| Hint | What it tells clients |
+|---|---|
+| `readOnlyHint` | This tool only reads data. No state changes occur. Clients may show a less prominent permission prompt. |
+| `destructiveHint` | This tool may destroy or permanently alter data. Clients may show a stronger warning before allowing it to run. |
+| `openWorldHint` | This tool reaches outside the server — network requests, external APIs, filesystem access. Clients may flag the external access. |
+| `idempotentHint` | Running this tool repeatedly with the same arguments causes no additional side effects after the first call. Clients may safely retry. |
+
+Hints are advisory — they inform the client UI, not the server. The server does not enforce them.
+
+### Setting Annotations
+
+Attach `.annotations` to your handler function using the same decorator pattern as `.description` and `.input`:
+
+```typescript
+const greet: ToolHandler = (args) => {
+  const { name } = args as { name: string };
+  return `Hello, ${name}!`;
+};
+greet.description = 'Greets a person by name';
+greet.input = { name: T.string({ required: true }) };
+greet.annotations = { readOnlyHint: true };  // pure read — no side effects
+server.tool('greet', greet);
+```
+
+### Decision Checklist
+
+Work through these questions for each tool you write:
+
+1. Does the tool write, delete, or modify anything? If no → `readOnlyHint: true`
+2. Is a write irreversible or data-destroying? If yes → `destructiveHint: true`
+3. Does the tool call an external service, make a network request, or read from the filesystem? If yes → `openWorldHint: true`
+4. Can the tool be safely retried with identical arguments? If yes → `idempotentHint: true`
+
+### Common Profiles
+
+| Pattern | Annotation |
+|---|---|
+| Read-only, data stays local | `{ readOnlyHint: true }` |
+| Read-only, calls external API or service | `{ readOnlyHint: true, openWorldHint: true }` |
+| Creates a resource (safe to retry) | `{ idempotentHint: true }` |
+| Deletes or overwrites data | `{ destructiveHint: true }` |
+| Sends an email, posts a message (cannot undo) | `{ destructiveHint: true, openWorldHint: true }` |
+
+---
+
 ## Resources
 
 ### `docs://readme`
