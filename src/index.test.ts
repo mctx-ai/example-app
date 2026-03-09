@@ -382,6 +382,64 @@ describe('Server capabilities', () => {
     expect(toolNames).toContain('smart-answer');
   });
 
+  test('greet tool should have read-only, idempotent, closed-world annotations', async () => {
+    const req = createRequest('tools/list');
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    const greetTool = data.result.tools.find((t: { name: string }) => t.name === 'greet');
+    expect(greetTool.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+      idempotentHint: true,
+    });
+  });
+
+  test('calculate tool should have read-only, idempotent, closed-world annotations', async () => {
+    const req = createRequest('tools/list');
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    const calculateTool = data.result.tools.find((t: { name: string }) => t.name === 'calculate');
+    expect(calculateTool.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+      idempotentHint: true,
+    });
+  });
+
+  test('analyze tool should have read-only, closed-world annotations without idempotentHint', async () => {
+    const req = createRequest('tools/list');
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    const analyzeTool = data.result.tools.find((t: { name: string }) => t.name === 'analyze');
+    expect(analyzeTool.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    });
+    expect(analyzeTool.annotations.idempotentHint).toBeUndefined();
+  });
+
+  test('smart-answer tool should have read-only, open-world annotations without idempotentHint', async () => {
+    const req = createRequest('tools/list');
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    const smartAnswerTool = data.result.tools.find(
+      (t: { name: string }) => t.name === 'smart-answer',
+    );
+    expect(smartAnswerTool.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    });
+    expect(smartAnswerTool.annotations.idempotentHint).toBeUndefined();
+  });
+
   test('should list all available resources', async () => {
     const reqResources = createRequest('resources/list');
     const resResources = await server.fetch(reqResources);
