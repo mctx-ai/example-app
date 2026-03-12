@@ -42,6 +42,23 @@ Set `GREETING=Howdy` to get `"Howdy, Alice!"` instead.
 
 ---
 
+### `whoami`
+
+Returns the authenticated mctx user ID. Takes no arguments — the identity comes from `ctx.userId`, a stable identifier that mctx injects into every handler call.
+
+```
+whoami()
+→ "Your mctx user ID is: user_abc123. This ID is stable across all your devices and sessions."
+```
+
+**`ctx.userId` is a mctx platform feature.** When a subscriber calls your server, mctx resolves their account server-side and injects it as the third argument to every handler — tools, resources, and prompts alike. Clients cannot forge or override it.
+
+Use it to scope per-user data, personalize responses, or gate access to user-specific resources without asking users to identify themselves.
+
+Demonstrates the `ctx` parameter and graceful degradation — when called outside mctx (local dev, HTTP test transport), the tool returns a helpful explanation rather than an error.
+
+---
+
 ### `calculate`
 
 Performs basic arithmetic and returns a structured result object.
@@ -316,6 +333,7 @@ Set environment variables in the [mctx.ai dashboard](https://mctx.ai) when deplo
 
 Use these with any MCP client connected to this server:
 
+- **"Who am I?"** — Call `whoami` to see your stable mctx user ID and understand how ctx.userId works
 - **"Greet the whole team"** — Call `greet` in a loop with each team member's name
 - **"Check my math"** — Use `calculate` to verify arithmetic in a document or spreadsheet
 - **"Deep-dive on a topic"** — Call `analyze` and watch real-time progress stream in
