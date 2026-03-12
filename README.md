@@ -1,7 +1,5 @@
 <img src="https://mctx.ai/brand/logo-purple.png" alt="mctx" width="120">
 
-**Free MCP Hosting. Set Your Price. Get Paid.**
-
 # Example MCP Server
 
 A complete reference implementation built with [`@mctx-ai/mcp-server`](https://github.com/mctx-ai/mcp-server). Every framework capability in one file — clone it, study it, make it yours.
