@@ -121,6 +121,9 @@ while [ -z "$project_name" ]; do
 done
 
 # Description (required)
+# Write a description that sells your server — up to 1,000 chars, indexed by Google,
+# front-load key capabilities for registry display (truncates at ~100-150 chars).
+# Use action verbs and specific capabilities, not generic labels.
 project_description=""
 while [ -z "$project_description" ]; do
   prompt_with_default "Description" "" project_description

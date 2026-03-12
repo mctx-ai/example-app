@@ -258,6 +258,42 @@ If you kept the examples, `src/index.ts` is unchanged — study the patterns and
 
 ---
 
+## Making Your Server Discoverable
+
+Three fields in `package.json` and one file determine how developers find your server, what they see when they land on your mctx.ai page, and whether AI assistants recommend it.
+
+### `description`
+
+This is marketing copy for potential subscribers AND an SEO field indexed by Google. You have 1,000 characters — use them. Describe specific capabilities with action verbs: "Query financial data from SEC filings using plain language queries" not "A useful finance server."
+
+The description also appears in the [MCP Community Registry](https://registry.modelcontextprotocol.io), but registry display truncates at roughly 100–150 characters. Front-load the most important information so it reads well in both contexts.
+
+```json
+{
+  "description": "Query SEC filings, extract financial metrics, and compare company performance using plain language. Supports 10-K, 10-Q, and 8-K filings. Returns structured data with citations to source documents. Built for analysts, researchers, and AI assistants that need auditable financial data without API keys or rate limits."
+}
+```
+
+### `homepage` (optional)
+
+Appears as a clickable link on your public mctx.ai server page. Set it to a project website, documentation site, or your GitHub repo URL. If you link to a GitHub repo, make sure it's public — private repo URLs return 404 to visitors.
+
+```json
+{
+  "homepage": "https://github.com/your-org/your-server"
+}
+```
+
+### `README.md`
+
+Your README becomes the public documentation on your mctx.ai server page. It also gets submitted to [Context7](https://context7.com) for AI assistant discovery — when developers ask an AI "find me a server that does X," Context7 searches README content to match.
+
+Structure matters. Lead with what the server does, then tools, then use cases, then prerequisites. The first ~4,000 characters are what AI assistants use to understand and recommend your server, so put the best material up front.
+
+See [docs.mctx.ai](https://docs.mctx.ai) for detailed guidance on writing READMEs that convert browsers into subscribers.
+
+---
+
 ## Development Commands
 
 ### Build
