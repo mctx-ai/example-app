@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import server, { smartAnswer } from './index.js';
+import server, { smartAnswer, whoami } from './index.js';
 
 // Helper to create JSON-RPC 2.0 request
 function createRequest(method: string, params: Record<string, unknown> = {}) {
@@ -76,6 +76,57 @@ describe('Tool: greet', () => {
     } else {
       process.env.GREETING = originalGreeting;
     }
+  });
+});
+
+describe('Tool: whoami', () => {
+  // In HTTP/stateless transport ctx is not injected, so ctx.userId is unavailable.
+  // The tool must return a graceful fallback message rather than throwing.
+  test('should return graceful message when ctx.userId is unavailable (HTTP transport)', async () => {
+    const req = createRequest('tools/call', {
+      name: 'whoami',
+      arguments: {},
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result.isError).toBeFalsy();
+    expect(data.result.content[0].text).toContain('No mctx user ID is available');
+  });
+
+  test('should not return an error when called without arguments', async () => {
+    const req = createRequest('tools/call', {
+      name: 'whoami',
+      arguments: {},
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result.isError).toBeFalsy();
+  });
+
+  // The ctx-available path cannot go through server.fetch() (HTTP transport never
+  // injects ctx). These tests invoke the exported handler directly with a mock ctx
+  // to cover the authenticated code path.
+
+  test('should return the user ID when ctx.userId is present', () => {
+    const mockCtx = { userId: 'user_abc123' };
+    const result = whoami({}, undefined, mockCtx);
+
+    expect(result).toContain('user_abc123');
+    expect(result).toContain('stable across all your devices and sessions');
+  });
+
+  test('should return graceful message when ctx is undefined', () => {
+    const result = whoami({}, undefined, undefined);
+
+    expect(result).toContain('No mctx user ID is available');
+  });
+
+  test('should return graceful message when ctx.userId is missing', () => {
+    const result = whoami({}, undefined, {});
+
+    expect(result).toContain('No mctx user ID is available');
   });
 });
 
@@ -377,9 +428,24 @@ describe('Server capabilities', () => {
 
     const toolNames = data.result.tools.map((t: { name: string }) => t.name);
     expect(toolNames).toContain('greet');
+    expect(toolNames).toContain('whoami');
     expect(toolNames).toContain('calculate');
     expect(toolNames).toContain('analyze');
     expect(toolNames).toContain('smart-answer');
+  });
+
+  test('whoami tool should have read-only, idempotent, closed-world annotations', async () => {
+    const req = createRequest('tools/list');
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    const whoamiTool = data.result.tools.find((t: { name: string }) => t.name === 'whoami');
+    expect(whoamiTool.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+      idempotentHint: true,
+    });
   });
 
   test('greet tool should have read-only, idempotent, closed-world annotations', async () => {

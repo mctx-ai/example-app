@@ -32,6 +32,7 @@ const server = createServer({
   instructions:
     'An example MCP server showcasing all framework features. ' +
     "Use 'greet' for a hello (customizable via GREETING env var), " +
+    "'whoami' to retrieve the authenticated mctx user ID (ctx.userId), " +
     "'calculate' for math, 'analyze' for progress-tracked analysis, " +
     "and 'smart-answer' for LLM-assisted Q&A. Resources include " +
     "docs://readme and user://{userId}. Prompts include 'code-review' " +
@@ -88,6 +89,67 @@ greet.annotations = {
   idempotentHint: true,
 };
 server.tool('greet', greet);
+
+/**
+ * ctx.userId — the authenticated mctx user identity
+ *
+ * mctx passes a context object as the THIRD argument to every handler:
+ *   ToolHandler:          (args, ask?, ctx?) => ...
+ *   ResourceHandler:      (params, ctx?)     => ...
+ *   PromptHandler:        (args, ctx?)        => ...
+ *
+ * ctx.userId is a stable, opaque string that identifies the subscriber
+ * who is calling this MCP server. Key properties:
+ *
+ *   - Stable across sessions — the same user gets the same ID every time,
+ *     from every device and client, for as long as their mctx account exists.
+ *
+ *   - Opaque — treat it as an arbitrary string; do not parse it for structure.
+ *     mctx makes no guarantees about its format other than uniqueness.
+ *
+ *   - Platform-injected — it is NOT passed by the MCP client. mctx resolves
+ *     the authenticated subscriber and injects it server-side before your
+ *     handler runs. Clients cannot forge or override it.
+ *
+ * Use ctx.userId to:
+ *   - Scope stored data per user (per-user KV keys, database rows, etc.)
+ *   - Gate access to user-specific resources
+ *   - Personalize responses without asking the user to identify themselves
+ *
+ * When running outside mctx (local dev, HTTP tests, non-authenticated requests)
+ * ctx may be undefined or ctx.userId may be absent. Always guard against this.
+ */
+export const whoami: ToolHandler = (_args, _ask?, ctx?) => {
+  // ctx is typed inline — it is the third positional argument on every handler.
+  // We only need userId here, so we destructure narrowly.
+  const { userId } = (ctx ?? {}) as { userId?: string };
+
+  if (!userId) {
+    // This happens in HTTP transport, local dev, or any context where mctx
+    // has not injected an authenticated user. Return a helpful explanation
+    // rather than an error so the tool degrades gracefully.
+    log.warning('whoami called without ctx.userId — not running inside mctx or no authenticated user');
+    return 'No mctx user ID is available. This tool returns your stable user ID when called through the mctx platform with an authenticated subscription.';
+  }
+
+  log.info({ userId }, 'whoami called by authenticated mctx user');
+
+  return `Your mctx user ID is: ${userId}. This ID is stable across all your devices and sessions.`;
+};
+whoami.description =
+  'Returns the authenticated mctx user ID (ctx.userId) — a stable, platform-injected identifier unique to your mctx account';
+// No .input — this tool takes no arguments. The user identity comes from ctx, not from args.
+// readOnlyHint: true  — reads ctx.userId only; touches no external state
+// destructiveHint: false — returns information; cannot modify or delete anything
+// openWorldHint: false — ctx.userId is injected by mctx before the handler runs; no network call
+// idempotentHint: true  — same user + same ctx always produces the same output
+whoami.annotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: false,
+  idempotentHint: true,
+};
+server.tool('whoami', whoami);
 
 /** Object returns are auto-serialized to JSON. Throw errors to signal failure. */
 const calculate: ToolHandler = (args) => {
