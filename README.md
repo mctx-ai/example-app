@@ -221,3 +221,4 @@ Three `package.json` fields and `README.md` determine how developers find your s
 - [docs.mctx.ai](https://docs.mctx.ai) — Platform guides for deploying and managing MCP servers
 - [mctx.ai](https://mctx.ai) — Host your MCP server for free
 - [MCP Specification](https://modelcontextprotocol.io) — The protocol spec this server implements
+
