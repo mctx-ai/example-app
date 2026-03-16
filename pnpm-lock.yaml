@@ -9,15 +9,15 @@ importers:
   .:
     dependencies:
       '@mctx-ai/mcp-server':
-        specifier: ^1.1.0
-        version: 1.1.0
+        specifier: ^1.2.0
+        version: 1.2.0
     devDependencies:
       '@eslint/js':
-        specifier: ^9.17.0
+        specifier: ^9.39.4
         version: 9.39.4
       '@mctx-ai/mcp-dev':
-        specifier: ^1.0.1
-        version: 1.0.1(@mctx-ai/mcp-server@1.1.0)
+        specifier: ^1.1.0
+        version: 1.1.0(@mctx-ai/mcp-server@1.2.0)
       '@types/node':
         specifier: ^25.4.0
         version: 25.4.0
@@ -261,15 +261,15 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
-  '@mctx-ai/mcp-dev@1.0.1':
-    resolution: {integrity: sha512-rKw93kt0Fj0gpKvmFMPD/mUgURjy3jLAIzTGt/Hk5chXhOwu5uWoPcnuqz1ena6DYxh+Xerz96Yl5O+Z2f3hxA==}
+  '@mctx-ai/mcp-dev@1.1.0':
+    resolution: {integrity: sha512-RY37WmYcWDOOd6DyWX0c3cXZE4wgrXe9u0DTdYNBbrLgRKRUZHEV3py6Zsi972pnXR1gnKGLdamZkq4wdEcvPw==}
     engines: {node: '>=22.0.0'}
     hasBin: true
     peerDependencies:
-      '@mctx-ai/mcp-server': 1.1.0
+      '@mctx-ai/mcp-server': 1.2.0
 
-  '@mctx-ai/mcp-server@1.1.0':
-    resolution: {integrity: sha512-x2tpLs5ILUgbf+BvDj1JDSFutcs3ubPFQOiHTGjgVVN4pzAIdyx5KCKO8msfOV8LcgyF63VS7VgBdc5+HQg6yw==}
+  '@mctx-ai/mcp-server@1.2.0':
+    resolution: {integrity: sha512-JjT8srzz1e3k1HbCGARMX2hxEL+g7NAV+ypuJIbzFTchGsFxt0XwmfXtMF1iaARNnniCvgq1mZJpvf2xizQvQA==}
 
   '@rollup/rollup-android-arm-eabi@4.59.0':
     resolution: {integrity: sha512-upnNBkA6ZH2VKGcBj9Fyl9IGNPULcjXRlg0LLeaioQWueH30p6IXtJEbKAgvyv+mJaMxSm1l6xwDXYjpEMiLMg==}
@@ -1195,11 +1195,11 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
-  '@mctx-ai/mcp-dev@1.0.1(@mctx-ai/mcp-server@1.1.0)':
+  '@mctx-ai/mcp-dev@1.1.0(@mctx-ai/mcp-server@1.2.0)':
     dependencies:
-      '@mctx-ai/mcp-server': 1.1.0
+      '@mctx-ai/mcp-server': 1.2.0
 
-  '@mctx-ai/mcp-server@1.1.0': {}
+  '@mctx-ai/mcp-server@1.2.0': {}
 
   '@rollup/rollup-android-arm-eabi@4.59.0':
     optional: true
