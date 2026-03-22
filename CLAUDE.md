@@ -97,6 +97,100 @@ server.tool('greet', greet);
 
 The handler processes JSON-RPC 2.0 requests over HTTP.
 
+### Channel Events (One-Way Push Notifications)
+
+Channel events let your server push one-way notifications into the connected Claude Code session without requiring the client to poll. They are delivered in real-time on the mctx platform, and no-op silently in local development and HTTP transport.
+
+**Handler signature:** All handlers (tools, resources, prompts) receive a `ctx` object as the final parameter:
+
+```typescript
+// ToolHandler
+(args, ask?, ctx?) => string | object | Promise<string | object>
+
+// ResourceHandler
+(params, ctx?) => string
+
+// PromptHandler
+(args, ctx?) => string | conversation(...)
+```
+
+**The ctx object includes:**
+- **`ctx.userId`** — The authenticated mctx user identifier (opaque string, stable across sessions)
+- **`ctx.emit(message, options)`** — Push a channel event into the connected session
+  - **`message`** — Human-readable text describing the event
+  - **`options.eventType`** — A label categorizing the event (e.g., `'greeting'`, `'notification'`, `'alert'`)
+  - **`options.meta`** — An object with custom metadata (keys must match `/^[a-zA-Z0-9_]+$/`; hyphens are silently dropped by Claude Code)
+
+**Important behaviors:**
+
+- **No blocking:** `ctx.emit()` is fire-and-forget. It runs via `ctx.waitUntil()` and does not block the tool response. Your handler returns immediately; the event dispatches asynchronously.
+- **No-op in local dev:** When MCTX environment variables are absent (local development, HTTP transport, or non-authenticated requests), `ctx.emit()` silently no-ops. Your handler continues normally without errors.
+- **Side-effect pattern:** Typically, `ctx.emit()` is a side-effect fired from within other tools (see `greet` example below). Dedicated event-pushing tools are less common but demonstrate the pattern explicitly (see `notify` tool).
+
+**Example: Emit as a side-effect (greet tool)**
+
+```typescript
+const greet: ToolHandler = (args, _ask, ctx) => {
+  const { name } = args as { name: string };
+  const greeting = process.env.GREETING || 'Hello';
+  const trimmedName = name.trim();
+
+  // emit is fire-and-forget — runs async, does not block the response
+  if (ctx) {
+    ctx.emit(`Greeted ${trimmedName}`, {
+      eventType: 'greeting',
+      meta: { name: trimmedName },
+    });
+  }
+
+  return `${greeting}, ${trimmedName}!`;
+};
+greet.annotations = {
+  readOnlyHint: false,      // side-effect via emit()
+  destructiveHint: false,   // cannot delete or corrupt data
+  openWorldHint: true,      // emit() calls mctx events API (external endpoint)
+  idempotentHint: true,     // the greeting return is idempotent; event is best-effort
+};
+```
+
+**Example: Dedicated event-pushing tool (notify)**
+
+```typescript
+export const notify: ToolHandler = async (args, _ask, ctx) => {
+  const { message } = args as { message: string };
+  const trimmedMessage = message.trim();
+
+  // Explicit pattern: tool's primary purpose is pushing an event
+  if (ctx) {
+    await ctx.emit(trimmedMessage, {
+      eventType: 'notification',
+      meta: { source: 'example_server' },
+    });
+  }
+
+  return `Notification sent: "${trimmedMessage}"`;
+};
+notify.annotations = {
+  readOnlyHint: false,      // primary side-effect
+  destructiveHint: false,   // cannot delete or corrupt data
+  openWorldHint: true,      // calls mctx events API
+  idempotentHint: false,    // each call pushes a distinct event; not safe to deduplicate
+};
+```
+
+**Meta key constraint:** Keys in the `meta` object must match the regex `/^[a-zA-Z0-9_]+$/`. Hyphens and other special characters are silently dropped by Claude Code's event handler. Keep meta keys simple and alphanumeric.
+
+**When to use channel events:**
+- Progress notifications independent of tool returns (e.g., "Task started", "Checkpoint reached")
+- Asynchronous alerts or status updates
+- User-facing feedback from long-running operations
+- Analytics or audit events logged as side-effects
+
+**When NOT to use channel events:**
+- If the information belongs in the tool's return value (use structured returns instead)
+- If clients need to act on the information synchronously (use `ask` for LLM sampling instead)
+- If delivery guarantee is critical (channel events are best-effort; use a durable message queue if atomicity is required)
+
 ---
 
 ## Deployment Model

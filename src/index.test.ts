@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import server, { smartAnswer, whoami } from './index.js';
+import server, { smartAnswer, whoami, notify } from './index.js';
 
 // Helper to create JSON-RPC 2.0 request
 function createRequest(method: string, params: Record<string, unknown> = {}) {
@@ -294,9 +294,47 @@ describe('Tool: smart-answer', () => {
       throw new Error('Sampling failed: model unavailable');
     };
 
-    await expect(
-      smartAnswer({ question: 'What is TypeScript?' }, mockAsk),
-    ).rejects.toThrow('Sampling failed: model unavailable');
+    await expect(smartAnswer({ question: 'What is TypeScript?' }, mockAsk)).rejects.toThrow(
+      'Sampling failed: model unavailable',
+    );
+  });
+});
+
+// ─── Channel Events Tests ────────────────────────────────────────────
+
+describe('Tool: notify', () => {
+  // ctx.emit() is fire-and-forget — the channel push is a side-effect tested
+  // at the framework level. These tests validate only the tool return value.
+  test('should return a confirmation string containing the message', async () => {
+    const req = createRequest('tools/call', {
+      name: 'notify',
+      arguments: { message: 'Hello from the test suite' },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result.isError).toBeFalsy();
+    expect(data.result.content[0].text).toContain('Hello from the test suite');
+  });
+
+  test('should not return an error for a valid message', async () => {
+    const req = createRequest('tools/call', {
+      name: 'notify',
+      arguments: { message: 'Test notification' },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result.isError).toBeFalsy();
+  });
+
+  // The handler can also be invoked directly — useful for verifying the return
+  // value without going through the JSON-RPC layer.
+  test('should return confirmation string when invoked directly', async () => {
+    const result = await notify({ message: 'Direct invocation test' });
+
+    expect(result).toContain('Direct invocation test');
+    expect(result).toContain('Notification sent');
   });
 });
 
@@ -432,6 +470,7 @@ describe('Server capabilities', () => {
     expect(toolNames).toContain('calculate');
     expect(toolNames).toContain('analyze');
     expect(toolNames).toContain('smart-answer');
+    expect(toolNames).toContain('notify');
   });
 
   test('whoami tool should have read-only, idempotent, closed-world annotations', async () => {
@@ -448,16 +487,16 @@ describe('Server capabilities', () => {
     });
   });
 
-  test('greet tool should have read-only, idempotent, closed-world annotations', async () => {
+  test('greet tool should have write, idempotent, open-world annotations', async () => {
     const req = createRequest('tools/list');
     const res = await server.fetch(req);
     const data = await getResponse(res);
 
     const greetTool = data.result.tools.find((t: { name: string }) => t.name === 'greet');
     expect(greetTool.annotations).toMatchObject({
-      readOnlyHint: true,
+      readOnlyHint: false,
       destructiveHint: false,
-      openWorldHint: false,
+      openWorldHint: true,
       idempotentHint: true,
     });
   });
@@ -506,6 +545,20 @@ describe('Server capabilities', () => {
     expect(smartAnswerTool.annotations.idempotentHint).toBeUndefined();
   });
 
+  test('notify tool should have write, open-world, non-idempotent annotations', async () => {
+    const req = createRequest('tools/list');
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    const notifyTool = data.result.tools.find((t: { name: string }) => t.name === 'notify');
+    expect(notifyTool.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: true,
+      idempotentHint: false,
+    });
+  });
+
   test('should list all available resources', async () => {
     const reqResources = createRequest('resources/list');
     const resResources = await server.fetch(reqResources);
@@ -518,7 +571,9 @@ describe('Server capabilities', () => {
     const resTemplates = await server.fetch(reqTemplates);
     const dataTemplates = await getResponse(resTemplates);
 
-    const templateUris = dataTemplates.result.resourceTemplates.map((t: { uriTemplate: string }) => t.uriTemplate);
+    const templateUris = dataTemplates.result.resourceTemplates.map(
+      (t: { uriTemplate: string }) => t.uriTemplate,
+    );
     expect(templateUris).toContain('user://{userId}');
   });
 

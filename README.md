@@ -31,6 +31,16 @@ The comprehensive reference implementation for [`@mctx-ai/mcp-server`](https://g
 - **Environment variable configuration** — reads `process.env.GREETING` lazily inside the handler (not at module scope)
 - **Comprehensive test coverage** — `src/index.test.ts` tests every tool, resource, and prompt via JSON-RPC 2.0 requests
 
+**Channel Events (Real-Time Push)**
+
+Ideal for real-time notifications, build status updates, background task completion alerts, and other events that don't require a response. See [Usage in Conversation](#usage-in-conversation) for example phrases.
+
+- **One-way push pattern** — `ctx.emit()` lets tools push real-time notifications into Claude Code sessions without the client polling. Handlers receive `(args, ask, ctx)` where `ctx.emit` sends events; the call is fire-and-forget and delivery to Claude Code happens asynchronously via `ctx.waitUntil()` without blocking the tool response
+- **`notify` tool** — dedicated demo of the channel pattern: receives a message string, emits it as a `notification` event with `source: example_server` meta, and returns a confirmation string to the caller
+- **`greet` tool enhancement** — fires a `greeting` event as a side-effect every time someone is greeted, showing how emit integrates naturally into existing tools
+
+> **Requirements:** Channel events require the mctx thin client plugin and Claude Code with channel support. The environment variables `MCTX_EVENTS_ENDPOINT`, `MCTX_SERVER_ID`, and `MCTX_EVENTS_SECRET` are auto-injected by mctx at runtime — developers do not set these manually. In local dev, these vars are absent and `ctx.emit()` gracefully no-ops.
+
 ---
 
 ## Usage in Conversation
@@ -59,6 +69,10 @@ Once connected to an MCP client, try phrases like these:
 - "Review my code" — invokes the `code-review` prompt with a code snippet
 - "Help me debug this stack trace" — invokes the `debug` prompt with an error and optional context
 
+**Channel Events**
+- "Send me a notification saying 'Build complete'" — calls `notify`, which pushes the message as a real-time channel event into your Claude Code session
+- "Greet Alice" — calls `greet` and also fires a `greeting` channel event as a side-effect
+
 ---
 
 ## Example Responses
@@ -79,6 +93,11 @@ analyze(topic: "quantum computing")
 
 smart-answer(question: "What is the capital of France?")
 → "Question: What is the capital of France?\n\nAnswer: Paris."
+
+notify(message: "Build complete")
+→ "Notification sent: \"Build complete\""
+→ [channel event pushed to Claude Code session: type=notification, source=example_server]
+  (the channel event appears as a real-time notification in the Claude Code session)
 
 Read URI: docs://readme
 → "Welcome to the example MCP server built with @mctx-ai/mcp-server..."
@@ -166,13 +185,17 @@ npm run format:check
 
 **`GREETING`** — Customizes the greeting in the `greet` tool (default: `"Hello"`). Set `GREETING="Howdy"` to get `"Howdy, Alice!"`.
 
+**Channel event variables (auto-injected by mctx — do not set manually)**
+
+`MCTX_EVENTS_ENDPOINT`, `MCTX_SERVER_ID`, and `MCTX_EVENTS_SECRET` are injected by the mctx platform at runtime. `ctx.emit()` automatically detects and uses these variables with no developer configuration needed — the framework wires them up internally and passes a ready-to-use `ctx` to every handler. In local dev, these vars are absent and `ctx.emit()` gracefully no-ops, so your tools work the same locally as on mctx (without actually pushing channel events).
+
 ---
 
 ## Project Structure
 
 ```
 src/index.ts        → Server implementation — all capabilities in one file
-  ├─ Tools          → greet, whoami, calculate, analyze, smart-answer
+  ├─ Tools          → greet, whoami, calculate, analyze, smart-answer, notify
   ├─ Resources      → docs://readme (static), user://{userId} (dynamic)
   ├─ Prompts        → code-review (single-message), debug (multi-message)
   └─ Export         → fetch handler for JSON-RPC 2.0 over HTTP
