@@ -35,12 +35,11 @@ The comprehensive reference implementation for [`@mctx-ai/mcp-server`](https://g
 
 Ideal for real-time notifications, build status updates, background task completion alerts, and other events that don't require a response. See [Usage in Conversation](#usage-in-conversation) for example phrases.
 
-- **One-way push pattern** — `server.emit()` lets tools push real-time notifications into Claude Code sessions without the client polling. Events are fire-and-forget — the emit call returns immediately, and delivery to Claude Code happens asynchronously via `ctx.waitUntil()` without blocking the tool response
+- **One-way push pattern** — `ctx.emit()` lets tools push real-time notifications into Claude Code sessions without the client polling. Handlers receive `(args, ask, ctx)` where `ctx.emit` sends events; the call is fire-and-forget and delivery to Claude Code happens asynchronously via `ctx.waitUntil()` without blocking the tool response
 - **`notify` tool** — dedicated demo of the channel pattern: receives a message string, emits it as a `notification` event with `source: example_server` meta, and returns a confirmation string to the caller
 - **`greet` tool enhancement** — fires a `greeting` event as a side-effect every time someone is greeted, showing how emit integrates naturally into existing tools
-- Search for TODO to find all emit casts that need updating when the framework ships.
 
-> **Requirements:** Channel events require the mctx thin client plugin and Claude Code with channel support. The environment variables `MCTX_EVENTS_ENDPOINT`, `MCTX_SERVER_ID`, and `MCTX_EVENTS_SECRET` are auto-injected by mctx at runtime — developers do not set these manually. In local dev, these vars are absent and `server.emit()` gracefully no-ops.
+> **Requirements:** Channel events require the mctx thin client plugin and Claude Code with channel support. The environment variables `MCTX_EVENTS_ENDPOINT`, `MCTX_SERVER_ID`, and `MCTX_EVENTS_SECRET` are auto-injected by mctx at runtime — developers do not set these manually. In local dev, these vars are absent and `ctx.emit()` gracefully no-ops.
 
 ---
 
@@ -188,7 +187,7 @@ npm run format:check
 
 **Channel event variables (auto-injected by mctx — do not set manually)**
 
-`MCTX_EVENTS_ENDPOINT`, `MCTX_SERVER_ID`, and `MCTX_EVENTS_SECRET` are injected by the mctx platform at runtime. `server.emit()` automatically detects and uses these variables with no developer configuration needed — the framework wires them up internally. In local dev, these vars are absent and `server.emit()` gracefully no-ops, so your tools work the same locally as on mctx (without actually pushing channel events).
+`MCTX_EVENTS_ENDPOINT`, `MCTX_SERVER_ID`, and `MCTX_EVENTS_SECRET` are injected by the mctx platform at runtime. `ctx.emit()` automatically detects and uses these variables with no developer configuration needed — the framework wires them up internally and passes a ready-to-use `ctx` to every handler. In local dev, these vars are absent and `ctx.emit()` gracefully no-ops, so your tools work the same locally as on mctx (without actually pushing channel events).
 
 ---
 

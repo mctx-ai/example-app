@@ -8,7 +8,7 @@
  *   2. Tools — sync handlers, object returns, generators, and LLM sampling
  *   3. Resources — static URIs and dynamic URI templates
  *   4. Prompts — single-message strings and multi-message conversations
- *   5. Channel events — one-way push notifications via server.emit()
+ *   5. Channel events — one-way push notifications via ctx.emit()
  *   6. Export — the fetch handler that ties it all together
  */
 
@@ -39,7 +39,7 @@ const server = createServer({
     'message as a real-time channel event into the connected Claude Code session. ' +
     "Resources include docs://readme and user://{userId}. Prompts include 'code-review' " +
     "and 'debug'. " +
-    'Channel events (server.emit()) let this server push one-way notifications without ' +
+    'Channel events (ctx.emit()) let this server push one-way notifications without ' +
     'the client polling — notify demonstrates the pattern explicitly, and greet fires ' +
     'a greeting event as a side-effect. ' +
     'Channel events only deliver when running on mctx; they no-op silently in local dev and HTTP transport.',
@@ -64,7 +64,7 @@ const server = createServer({
  * Reads process.env lazily inside the handler (not at module scope) because
  * env vars may not be available at import time in some runtimes.
  */
-const greet: ToolHandler = (args) => {
+const greet: ToolHandler = (args, _ask, ctx) => {
   const { name } = args as { name: string };
   const greeting = process.env.GREETING || 'Hello';
   const trimmedName = name.trim();
@@ -74,12 +74,13 @@ const greet: ToolHandler = (args) => {
   // emit is fire-and-forget — it runs via ctx.waitUntil() and does not block
   // the tool response. The greeting event is a side-effect; the caller receives
   // the return value below before the event is dispatched.
-  // Outside mctx (local dev / HTTP transport), emit is undefined and silently no-ops via optional chaining.
-  // TODO: Remove cast when @mctx-ai/mcp-server exports server.emit() (Deliverable #1)
-  (server as any).emit?.(`Greeted ${trimmedName}`, {
-    eventType: 'greeting',
-    meta: { name: trimmedName },
-  });
+  // ctx.emit no-ops silently when MCTX env vars are absent (local dev / HTTP transport).
+  if (ctx) {
+    ctx.emit(`Greeted ${trimmedName}`, {
+      eventType: 'greeting',
+      meta: { name: trimmedName },
+    });
+  }
 
   return `${greeting}, ${trimmedName}!`;
 };
@@ -330,12 +331,12 @@ server.tool('smart-answer', smartAnswer);
 
 // ─── Channel Events ───────────────────────────────────────────────────────
 //
-// server.emit() pushes a one-way notification into the connected Claude Code
+// ctx.emit() pushes a one-way notification into the connected Claude Code
 // session (or any mctx channel subscriber). It runs via ctx.waitUntil() so
 // the tool response is returned to the client immediately — emit never blocks.
 //
-// server.emit() no-ops silently when the events API is unreachable, so callers
-// do not need to handle network failures.
+// ctx.emit() no-ops silently when the MCTX env vars are absent, so callers
+// do not need to handle network failures or guard against missing configuration.
 //
 // Meta keys must match [a-zA-Z0-9_]+ — hyphens are silently dropped by Claude Code.
 //
@@ -349,24 +350,25 @@ server.tool('smart-answer', smartAnswer);
  * is typically a side-effect inside other tools (as in greet above), not the primary
  * purpose of a dedicated tool. The explicit form here makes the pattern easy to study.
  */
-export const notify: ToolHandler = (args) => {
+export const notify: ToolHandler = async (args, _ask, ctx) => {
   const { message } = args as { message: string };
   const trimmedMessage = message.trim();
 
   log.info(`Emitting channel event: ${trimmedMessage}`);
 
-  // emit is fire-and-forget — returns immediately; the event is dispatched async.
-  // TODO: Remove cast when @mctx-ai/mcp-server exports server.emit() (Deliverable #1)
-  (server as any).emit?.(trimmedMessage, {
-    eventType: 'notification',
-    meta: { source: 'example_server' },
-  });
+  // ctx.emit no-ops silently when MCTX env vars are absent (local dev / HTTP transport).
+  if (ctx) {
+    await ctx.emit(trimmedMessage, {
+      eventType: 'notification',
+      meta: { source: 'example_server' },
+    });
+  }
 
   return `Notification sent: "${trimmedMessage}"`;
 };
 notify.description =
   'Pushes a custom message as a real-time channel event into the connected Claude Code session. ' +
-  'Demonstrates the server.emit() one-way push pattern.';
+  'Demonstrates the ctx.emit() one-way push pattern.';
 notify.input = {
   message: T.string({
     required: true,

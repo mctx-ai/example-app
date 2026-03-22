@@ -303,7 +303,7 @@ describe('Tool: smart-answer', () => {
 // ─── Channel Events Tests ────────────────────────────────────────────
 
 describe('Tool: notify', () => {
-  // server.emit() is fire-and-forget — the channel push is a side-effect tested
+  // ctx.emit() is fire-and-forget — the channel push is a side-effect tested
   // at the framework level. These tests validate only the tool return value.
   test('should return a confirmation string containing the message', async () => {
     const req = createRequest('tools/call', {
@@ -330,8 +330,8 @@ describe('Tool: notify', () => {
 
   // The handler can also be invoked directly — useful for verifying the return
   // value without going through the JSON-RPC layer.
-  test('should return confirmation string when invoked directly', () => {
-    const result = notify({ message: 'Direct invocation test' });
+  test('should return confirmation string when invoked directly', async () => {
+    const result = await notify({ message: 'Direct invocation test' });
 
     expect(result).toContain('Direct invocation test');
     expect(result).toContain('Notification sent');
