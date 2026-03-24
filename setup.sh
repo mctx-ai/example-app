@@ -367,7 +367,7 @@ This project uses an automated release workflow with a main/release dual-branch 
 
 ## Learn More
 
-- [`@mctx-ai/mcp-server`](https://github.com/mctx-ai/mcp-server) — Framework documentation and API reference
+- [`@mctx-ai/app`](https://github.com/mctx-ai/app) — Framework documentation and API reference
 - [docs.mctx.ai](https://docs.mctx.ai) — Platform guides for deploying and managing your Apps
 - [mctx.ai](https://mctx.ai) — Host your App for free
 - [MCP Specification](https://modelcontextprotocol.io) — The protocol spec this App implements
@@ -872,7 +872,7 @@ if [ "$keep_examples" = "n" ]; then
 /**
  * App
  *
- * Built with @mctx-ai/mcp-server. Add your tools, resources, and prompts below.
+ * Built with @mctx-ai/app. Add your tools, resources, and prompts below.
  *
  * Framework patterns:
  *   - Tools      → functions LLM clients can invoke
@@ -887,7 +887,7 @@ import {
   T,
   log,
   type ToolHandler,
-} from '@mctx-ai/mcp-server';
+} from '@mctx-ai/app';
 
 // ─── Server ──────────────────────────────────────────────────────────────────
 
@@ -926,7 +926,7 @@ hello.input = {
 server.tool('hello', hello);
 
 // TODO: Add more tools, resources, and prompts here.
-// See https://github.com/mctx-ai/mcp-server for full API documentation.
+// See https://github.com/mctx-ai/app for full API documentation.
 
 // ─── Export ──────────────────────────────────────────────────────────────────
 //

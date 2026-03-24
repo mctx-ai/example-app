@@ -1,7 +1,7 @@
 /**
  * Example App
  *
- * A complete reference implementation built with @mctx-ai/mcp-server.
+ * A complete reference implementation built with @mctx-ai/app.
  * Read top-to-bottom to learn every framework capability:
  *
  *   1. Server setup and configuration
@@ -22,7 +22,7 @@ import {
   type GeneratorToolHandler,
   type ResourceHandler,
   type PromptHandler,
-} from '@mctx-ai/mcp-server';
+} from '@mctx-ai/app';
 
 // ─── Server ──────────────────────────────────────────────────────────
 //
@@ -397,7 +397,7 @@ server.tool('notify', notify);
 
 /** Static resource: exact URI, no parameters. */
 const readme: ResourceHandler = () =>
-  'Welcome to the example App built with @mctx-ai/mcp-server. This App demonstrates tools, resources, prompts, progress tracking, and sampling.';
+  'Welcome to the example App built with @mctx-ai/app. This App demonstrates tools, resources, prompts, progress tracking, and sampling.';
 readme.description = 'App documentation';
 readme.mimeType = 'text/plain';
 server.resource('docs://readme', readme);

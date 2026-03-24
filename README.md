@@ -2,7 +2,7 @@
 
 # Example App
 
-The comprehensive reference implementation for [`@mctx-ai/mcp-server`](https://github.com/mctx-ai/mcp-server). Every framework capability in one well-commented file — clone it, study it, fork it as a template for your own App.
+The comprehensive reference implementation for [`@mctx-ai/app`](https://github.com/mctx-ai/app). Every framework capability in one well-commented file — clone it, study it, fork it as a template for your own App.
 
 ---
 
@@ -100,7 +100,7 @@ notify(message: "Build complete")
   (the channel event appears as a real-time notification in the Claude Code session)
 
 Read URI: docs://readme
-→ "Welcome to the example App built with @mctx-ai/mcp-server..."
+→ "Welcome to the example App built with @mctx-ai/app..."
 
 Read URI: user://42
 → { "id": "42", "name": "User 42", "joined": "2024-01-01", "plan": "pro" }
@@ -240,7 +240,7 @@ Three `package.json` fields and `README.md` determine how developers find your A
 
 ## Learn More
 
-- [`@mctx-ai/mcp-server`](https://github.com/mctx-ai/mcp-server) — Framework documentation and API reference
+- [`@mctx-ai/app`](https://github.com/mctx-ai/app) — Framework documentation and API reference
 - [docs.mctx.ai](https://docs.mctx.ai) — Platform guides for deploying and managing your Apps
 - [mctx.ai](https://mctx.ai) — Host your App for free
 - [MCP Specification](https://modelcontextprotocol.io) — The protocol spec this App implements

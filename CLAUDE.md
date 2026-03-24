@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-An **example App** built with `@mctx-ai/mcp-server` framework. Demonstrates all framework capabilities in a single, well-commented reference implementation (`src/index.ts`).
+An **example App** built with `@mctx-ai/app` framework. Demonstrates all framework capabilities in a single, well-commented reference implementation (`src/index.ts`).
 
 **Purpose:** Serve as learning material and template for developers building Apps with this framework.
 
