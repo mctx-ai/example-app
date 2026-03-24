@@ -1,7 +1,7 @@
 {
   "name": "example-mcp-server",
   "version": "1.3.0",
-  "description": "Build complete MCP servers with our framework — study or fork this reference implementation. Covers all @mctx-ai/mcp-server patterns: tool types (sync string, object return, generators, LLM sampling), resource URIs (static, dynamic templates), prompt formats (single-message, multi-message), tool annotations (readOnly, destructive, openWorld, idempotent), structured logging, environment variables, and test coverage. The whoami tool demonstrates user identity via ctx.userId. Includes setup.sh for quick template generation.",
+  "description": "Build complete Apps with our framework — study or fork this reference implementation. Covers all @mctx-ai/mcp-server patterns: tool types (sync string, object return, generators, LLM sampling), resource URIs (static, dynamic templates), prompt formats (single-message, multi-message), tool annotations (readOnly, destructive, openWorld, idempotent), structured logging, environment variables, and test coverage. The whoami tool demonstrates user identity via ctx.userId. Includes setup.sh for quick template generation.",
   "homepage": "https://mctx.ai",
   "type": "module",
   "main": "dist/index.js",

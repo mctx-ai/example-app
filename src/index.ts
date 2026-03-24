@@ -1,5 +1,5 @@
 /**
- * Example MCP Server
+ * Example App
  *
  * A complete reference implementation built with @mctx-ai/mcp-server.
  * Read top-to-bottom to learn every framework capability:
@@ -26,12 +26,12 @@ import {
 
 // ─── Server ──────────────────────────────────────────────────────────
 //
-// createServer() returns an MCP server instance. The `instructions` field
-// tells LLM clients what this server offers and how to use it.
+// createServer() returns an App instance. The `instructions` field
+// tells LLM clients what this App offers and how to use it.
 
 const server = createServer({
   instructions:
-    'An example MCP server showcasing all framework features. ' +
+    'An example App showcasing all framework features. ' +
     "Use 'greet' for a hello (customizable via GREETING env var), " +
     "'whoami' to retrieve the authenticated mctx user ID (ctx.userId), " +
     "'calculate' for math, 'analyze' for progress-tracked analysis, " +
@@ -39,7 +39,7 @@ const server = createServer({
     'message as a real-time channel event into the connected Claude Code session. ' +
     "Resources include docs://readme and user://{userId}. Prompts include 'code-review' " +
     "and 'debug'. " +
-    'Channel events (ctx.emit()) let this server push one-way notifications without ' +
+    'Channel events (ctx.emit()) let this App push one-way notifications without ' +
     'the client polling — notify demonstrates the pattern explicitly, and greet fires ' +
     'a greeting event as a side-effect. ' +
     'Channel events only deliver when running on mctx; they no-op silently in local dev and HTTP transport.',
@@ -115,7 +115,7 @@ server.tool('greet', greet);
  *   PromptHandler:        (args, ctx?)        => ...
  *
  * ctx.userId is a stable, opaque string that identifies the subscriber
- * who is calling this MCP server. Key properties:
+ * who is calling this App. Key properties:
  *
  *   - Stable across sessions — the same user gets the same ID every time,
  *     from every device and client, for as long as their mctx account exists.
@@ -397,8 +397,8 @@ server.tool('notify', notify);
 
 /** Static resource: exact URI, no parameters. */
 const readme: ResourceHandler = () =>
-  'Welcome to the example MCP server built with @mctx-ai/mcp-server. This server demonstrates tools, resources, prompts, progress tracking, and sampling.';
-readme.description = 'Server documentation';
+  'Welcome to the example App built with @mctx-ai/mcp-server. This App demonstrates tools, resources, prompts, progress tracking, and sampling.';
+readme.description = 'App documentation';
 readme.mimeType = 'text/plain';
 server.resource('docs://readme', readme);
 

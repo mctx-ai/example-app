@@ -1,8 +1,8 @@
 <img src="https://mctx.ai/brand/logo-purple.png" alt="mctx" width="120">
 
-# Example MCP Server
+# Example App
 
-The comprehensive reference implementation for [`@mctx-ai/mcp-server`](https://github.com/mctx-ai/mcp-server). Every framework capability in one well-commented file — clone it, study it, fork it as a template for your own MCP server.
+The comprehensive reference implementation for [`@mctx-ai/mcp-server`](https://github.com/mctx-ai/mcp-server). Every framework capability in one well-commented file — clone it, study it, fork it as a template for your own App.
 
 ---
 
@@ -100,7 +100,7 @@ notify(message: "Build complete")
   (the channel event appears as a real-time notification in the Claude Code session)
 
 Read URI: docs://readme
-→ "Welcome to the example MCP server built with @mctx-ai/mcp-server..."
+→ "Welcome to the example App built with @mctx-ai/mcp-server..."
 
 Read URI: user://42
 → { "id": "42", "name": "User 42", "joined": "2024-01-01", "plan": "pro" }
@@ -228,20 +228,20 @@ Do not edit the `release` branch directly. Do not commit `dist/index.js` on `mai
 
 ---
 
-## Making Your Server Discoverable
+## Making Your App Discoverable
 
-Three `package.json` fields and `README.md` determine how developers find your server.
+Three `package.json` fields and `README.md` determine how developers find your App.
 
 - **`description`** — Appears in the MCP Community Registry (truncates at ~100–150 chars) and on your mctx.ai page. Front-load the most important information.
 - **`homepage`** — Clickable link on your public mctx.ai page. Point it at your GitHub repo or docs site.
-- **`README.md`** — Becomes the documentation on your mctx.ai page and is indexed by Context7 for AI assistant discovery. Lead with what the server does; the first ~4,000 characters are what AI assistants use to understand and recommend it.
+- **`README.md`** — Becomes the documentation on your mctx.ai page and is indexed by Context7 for AI assistant discovery. Lead with what the App does; the first ~4,000 characters are what AI assistants use to understand and recommend it.
 
 ---
 
 ## Learn More
 
 - [`@mctx-ai/mcp-server`](https://github.com/mctx-ai/mcp-server) — Framework documentation and API reference
-- [docs.mctx.ai](https://docs.mctx.ai) — Platform guides for deploying and managing MCP servers
-- [mctx.ai](https://mctx.ai) — Host your MCP server for free
-- [MCP Specification](https://modelcontextprotocol.io) — The protocol spec this server implements
+- [docs.mctx.ai](https://docs.mctx.ai) — Platform guides for deploying and managing your Apps
+- [mctx.ai](https://mctx.ai) — Host your App for free
+- [MCP Specification](https://modelcontextprotocol.io) — The protocol spec this App implements
 

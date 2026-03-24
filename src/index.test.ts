@@ -348,7 +348,7 @@ describe('Resource: docs://readme', () => {
     const res = await server.fetch(req);
     const data = await getResponse(res);
 
-    expect(data.result.contents[0].text).toContain('Welcome to the example MCP server');
+    expect(data.result.contents[0].text).toContain('Welcome to the example App');
     expect(data.result.contents[0].text).toContain('@mctx-ai/mcp-server');
     expect(data.result.contents[0].mimeType).toBe('text/plain');
   });

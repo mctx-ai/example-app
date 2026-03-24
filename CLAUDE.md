@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-An **example MCP server** built with `@mctx-ai/mcp-server` framework. Demonstrates all framework capabilities in a single, well-commented reference implementation (`src/index.ts`).
+An **example App** built with `@mctx-ai/mcp-server` framework. Demonstrates all framework capabilities in a single, well-commented reference implementation (`src/index.ts`).
 
-**Purpose:** Serve as learning material and template for developers building MCP servers with this framework.
+**Purpose:** Serve as learning material and template for developers building Apps with this framework.
 
 **Key Features:**
 - Four tool patterns (sync string, object return, generators with progress, LLM sampling)
@@ -89,7 +89,7 @@ server.tool('greet', greet);
 
 ### Entry Point
 
-`createServer()` initializes an MCP server instance. The returned `server.fetch` property is a Web Standard Fetch API handler compatible with:
+`createServer()` initializes an App instance. The returned `server.fetch` property is a Web Standard Fetch API handler compatible with:
 - Cloudflare Workers
 - Deno Deploy
 - Node.js with adapters
@@ -252,7 +252,7 @@ Content in this repository serves two distinct audiences. Understanding which au
 
 ### instructions — Audience: AI clients
 
-The `instructions` field passed to `createServer()` (or set in `package.json`) is sent to AI clients such as Claude and Cursor when they connect to this MCP server. Its purpose is to help the AI decide what this server covers and when to call its tools. Setting instructions in code via `createServer()` takes precedence over the `instructions` field in `package.json`.
+The `instructions` field passed to `createServer()` (or set in `package.json`) is sent to AI clients such as Claude and Cursor when they connect to this App. Its purpose is to help the AI decide what this App covers and when to call its tools. Setting instructions in code via `createServer()` takes precedence over the `instructions` field in `package.json`.
 
 Write instructions for a machine that needs clear routing signals:
 - Name every tool and describe what each one does
@@ -262,30 +262,30 @@ Write instructions for a machine that needs clear routing signals:
 
 ### README.md — Audience: Human subscribers
 
-`README.md` is displayed on the server's public mctx page as the subscriber-facing product page. People evaluating whether to subscribe to this server, or current subscribers looking for usage guidance, read this file.
+`README.md` is displayed on the App's public mctx page as the subscriber-facing product page. People evaluating whether to subscribe to this App, or current subscribers looking for usage guidance, read this file.
 
-Write the README for humans who want to understand what the server offers and how to use it:
+Write the README for humans who want to understand what the App offers and how to use it:
 - Lead with the value proposition
 - Explain use cases in plain language
 - Include examples that show real-world benefit
 
-### description in package.json — Server info and registry
+### description in package.json — App info and registry
 
-The `description` field appears on the server's mctx info page and in the MCP Community Registry. It is the one-liner that represents this server in listings and search results. Write it to be informative and scannable at a glance.
+The `description` field appears on the App's mctx info page and in the MCP Community Registry. It is the one-liner that represents this App in listings and search results. Write it to be informative and scannable at a glance.
 
 ---
 
 ## package.json Fields
 
-mctx reads specific fields from `package.json` to configure and identify your server. Know what each field controls.
+mctx reads specific fields from `package.json` to configure and identify your App. Know what each field controls.
 
 **Required fields:**
 
 | Field | Purpose |
 |-------|---------|
-| `name` | MCP server display name shown in the mctx dashboard and sent to AI clients as the server identifier |
+| `name` | App display name shown in the mctx dashboard and sent to AI clients as the App identifier |
 | `version` | Triggers a new mctx deployment when it changes on a push |
-| `description` | Shown on the server info page and MCP Community Registry |
+| `description` | Shown on the App info page and MCP Community Registry |
 | `main` | Path to the built JS file mctx serves (`dist/index.js`) |
 
 **Important type field:**
@@ -373,7 +373,7 @@ Prettier configuration: `singleQuote: true`, `printWidth: 100` (in `.prettierrc`
 - **Example:** `GREETING="Howdy"` → greet tool returns "Howdy, {name}!"
 - **Set in mctx dashboard** when deployed for production configuration
 
-This demonstrates how to read environment variables in MCP servers deployed to mctx.
+This demonstrates how to read environment variables in Apps deployed to mctx.
 
 ---
 

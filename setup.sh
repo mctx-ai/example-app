@@ -87,7 +87,7 @@ trap cleanup INT
 
 printf "\n"
 printf "${BOLD}${CYAN}  ╔══════════════════════════════════════════════════════╗${RESET}\n"
-printf "${BOLD}${CYAN}  ║         MCP Server Template Setup                   ║${RESET}\n"
+printf "${BOLD}${CYAN}  ║         App Template Setup                          ║${RESET}\n"
 printf "${BOLD}${CYAN}  ╚══════════════════════════════════════════════════════╝${RESET}\n"
 printf "\n"
 info "This script customizes this template for your project."
@@ -121,7 +121,7 @@ while [ -z "$project_name" ]; do
 done
 
 # Description (required)
-# Write a description that sells your server — up to 1,000 chars, indexed by Google,
+# Write a description that sells your App — up to 1,000 chars, indexed by Google,
 # front-load key capabilities for registry display (truncates at ~100-150 chars).
 # Use action verbs and specific capabilities, not generic labels.
 project_description=""
@@ -267,9 +267,9 @@ readme="$repo_root/README.md"
 #   - The Learn More section (framework docs are always relevant)
 #
 # We replace:
-#   - The title (was "Example MCP Server")
+#   - The title (was "Example App")
 #   - The subtitle/description line
-#   - The "What This Server Does" section (example-specific)
+#   - The "What This App Does" section (example-specific)
 #   - The detailed tool/resource/prompt docs (example-specific)
 #   - The "Prompt Ideas" section (example-specific)
 
@@ -353,9 +353,9 @@ Add your environment variables here. Set them in the [mctx.ai dashboard](https:/
 
 1. Visit [mctx.ai](https://mctx.ai) and connect your repository
 2. Set any environment variables in the dashboard
-3. Deploy — mctx reads `package.json` for server configuration
+3. Deploy — mctx reads `package.json` for App configuration
 
-mctx handles TLS, scaling, and uptime. You keep the code. Set your price and get paid when other developers use your server.
+mctx handles TLS, scaling, and uptime. You keep the code. Set your price and get paid when other developers use your App.
 
 ---
 
@@ -368,9 +368,9 @@ This project uses an automated release workflow with a main/release dual-branch 
 ## Learn More
 
 - [`@mctx-ai/mcp-server`](https://github.com/mctx-ai/mcp-server) — Framework documentation and API reference
-- [docs.mctx.ai](https://docs.mctx.ai) — Platform guides for deploying and managing MCP servers
-- [mctx.ai](https://mctx.ai) — Host your MCP server for free
-- [MCP Specification](https://modelcontextprotocol.io) — The protocol spec this server implements
+- [docs.mctx.ai](https://docs.mctx.ai) — Platform guides for deploying and managing your Apps
+- [mctx.ai](https://mctx.ai) — Host your App for free
+- [MCP Specification](https://modelcontextprotocol.io) — The protocol spec this App implements
 README_EOF
 
 # Substitute placeholders with actual values using perl (safe: no shell evaluation)
@@ -387,7 +387,7 @@ if [ "$keep_examples" = "n" ]; then
 
   cat > "$repo_root/src/index.ts" << 'INDEX_EOF'
 /**
- * MCP Server
+ * App
  *
  * Built with @mctx-ai/mcp-server. Add your tools, resources, and prompts below.
  *
@@ -410,9 +410,9 @@ import {
 
 const server = createServer({
   instructions:
-    // TODO: Describe what your MCP server offers and how to use it.
+    // TODO: Describe what your App offers and how to use it.
     // This text is shown to LLM clients so they know what capabilities are available.
-    'An MCP server. Update this description to tell clients what this server can do.',
+    'An App. Update this description to tell clients what this App can do.',
 });
 
 // ─── Tools ───────────────────────────────────────────────────────────────────
@@ -631,7 +631,7 @@ printf "${BOLD}${GREEN}  Setup complete!${RESET}\n"
 printf "\n"
 info "Your project is ready. Next steps:"
 info "  1. Review and update src/index.ts with your tools"
-info "  2. Update README.md with your server's capabilities"
+info "  2. Update README.md with your App's capabilities"
 info "  3. Run 'npm run dev' to start the development server"
 info "  4. Deploy at https://mctx.ai when ready"
 info "  5. Set up your release workflow — see RELEASE.md"
