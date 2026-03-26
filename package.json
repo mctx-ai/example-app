@@ -1,6 +1,6 @@
 {
   "name": "example-app",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "Build complete Apps with our framework — study or fork this reference implementation. Covers all @mctx-ai/app patterns: tool types (sync string, object return, generators, LLM sampling), resource URIs (static, dynamic templates), prompt formats (single-message, multi-message), tool annotations (readOnly, destructive, openWorld, idempotent), structured logging, environment variables, and test coverage. The whoami tool demonstrates user identity via ctx.userId. Includes setup.sh for quick template generation.",
   "homepage": "https://mctx.ai",
   "type": "module",
