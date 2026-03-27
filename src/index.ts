@@ -349,6 +349,11 @@ server.tool('smart-answer', smartAnswer);
  * This tool exists purely to showcase the channel pattern. In real servers, emit()
  * is typically a side-effect inside other tools (as in greet above), not the primary
  * purpose of a dedicated tool. The explicit form here makes the pattern easy to study.
+ *
+ * As of the latest @mctx-ai/app version, ctx.emit() returns Promise<string> — the
+ * eventId assigned by the mctx events service. Capturing it lets callers log or
+ * reference the event after dispatch. The eventId is only present when running on
+ * mctx; it is undefined in local dev and HTTP transport.
  */
 export const notify: ToolHandler = async (args, _ask, ctx) => {
   const { message } = args as { message: string };
@@ -357,14 +362,24 @@ export const notify: ToolHandler = async (args, _ask, ctx) => {
   log.info(`Emitting channel event: ${trimmedMessage}`);
 
   // ctx.emit no-ops silently when MCTX env vars are absent (local dev / HTTP transport).
+  // ctx.emit() returns Promise<string> — the eventId assigned by the mctx events service.
+  // Capture it here to demonstrate the new API and include it in the confirmation.
+  let eventId: string | undefined;
   if (ctx) {
-    await ctx.emit(trimmedMessage, {
+    eventId = (await ctx.emit(trimmedMessage, {
       eventType: 'notification',
       meta: { source: 'example_server' },
-    });
+    })) as unknown as string | undefined;
+    if (eventId) {
+      log.info({ eventId }, 'Channel event dispatched');
+    }
   }
 
-  return `Notification sent: "${trimmedMessage}"`;
+  const confirmation = eventId
+    ? `Notification sent: "${trimmedMessage}" (eventId: ${eventId})`
+    : `Notification sent: "${trimmedMessage}"`;
+
+  return confirmation;
 };
 notify.description =
   'Pushes a custom message as a real-time channel event into the connected Claude Code session. ' +
