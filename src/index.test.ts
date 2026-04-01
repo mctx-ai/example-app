@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import server, { smartAnswer, whoami, notify } from './index.js';
+import server, { smartAnswer, whoami, notify, schedule, cancelEvent } from './index.js';
 
 // Helper to create JSON-RPC 2.0 request
 function createRequest(method: string, params: Record<string, unknown> = {}) {
@@ -338,6 +338,110 @@ describe('Tool: notify', () => {
   });
 });
 
+describe('Tool: schedule', () => {
+  // ctx.emit() with deliverAt is the mechanism under test — verified at framework level.
+  // These tests validate the tool return value (eventId in response) and input acceptance.
+  test('should return confirmation with eventId for a scheduled event', async () => {
+    const req = createRequest('tools/call', {
+      name: 'schedule',
+      arguments: { message: 'Reminder: deploy release', deliverAt: '2025-12-31T23:59:59Z' },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result.isError).toBeFalsy();
+    expect(data.result.content[0].text).toContain('2025-12-31T23:59:59Z');
+    expect(data.result.content[0].text).toContain('eventId');
+  });
+
+  test('should accept deliverAt and optional key parameters', async () => {
+    const req = createRequest('tools/call', {
+      name: 'schedule',
+      arguments: {
+        message: 'Deploy notification',
+        deliverAt: '2025-06-15T10:00:00Z',
+        key: 'deploy_123',
+      },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result.isError).toBeFalsy();
+    expect(data.result.content[0].text).toContain('2025-06-15T10:00:00Z');
+  });
+
+  test('should not return an error for valid input', async () => {
+    const req = createRequest('tools/call', {
+      name: 'schedule',
+      arguments: { message: 'Scheduled test message', deliverAt: '2025-09-01T08:00:00Z' },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result.isError).toBeFalsy();
+  });
+
+  // The ctx-available path cannot go through server.fetch() (HTTP transport never
+  // injects ctx). Invoke the exported handler directly with a mock ctx to cover
+  // the eventId capture path.
+  test('should capture and return eventId when ctx is available', async () => {
+    const mockCtx = {
+      emit: (_msg: string, _opts?: unknown) => 'evt_abc123',
+      cancel: (_eventId: string) => {},
+    };
+    const result = await schedule(
+      { message: 'Test', deliverAt: '2025-12-01T00:00:00Z' },
+      undefined,
+      mockCtx,
+    );
+
+    expect(result).toContain('evt_abc123');
+    expect(result).toContain('2025-12-01T00:00:00Z');
+  });
+});
+
+describe('Tool: cancel-event', () => {
+  // ctx.cancel() is verified at the framework level.
+  // These tests validate the tool return value and that it accepts valid input.
+  test('should return confirmation for a valid eventId', async () => {
+    const req = createRequest('tools/call', {
+      name: 'cancel-event',
+      arguments: { eventId: 'evt_abc123' },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result.isError).toBeFalsy();
+    expect(data.result.content[0].text).toContain('evt_abc123');
+    expect(data.result.content[0].text).toContain('cancelled');
+  });
+
+  test('should not return an error for valid input', async () => {
+    const req = createRequest('tools/call', {
+      name: 'cancel-event',
+      arguments: { eventId: 'evt_xyz789' },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result.isError).toBeFalsy();
+  });
+
+  // Invoke directly to verify the handler calls ctx.cancel with the eventId.
+  test('should call ctx.cancel with the provided eventId', async () => {
+    const cancelledIds: string[] = [];
+    const mockCtx = {
+      emit: (_msg: string, _opts?: unknown) => '',
+      cancel: (eventId: string) => { cancelledIds.push(eventId); },
+    };
+    const result = await cancelEvent({ eventId: 'evt_direct_test' }, undefined, mockCtx);
+
+    expect(cancelledIds).toContain('evt_direct_test');
+    expect(result).toContain('evt_direct_test');
+    expect(result).toContain('cancelled');
+  });
+});
+
 // ─── Resources Tests ────────────────────────────────────────────────
 
 describe('Resource: docs://readme', () => {
@@ -471,6 +575,8 @@ describe('Server capabilities', () => {
     expect(toolNames).toContain('analyze');
     expect(toolNames).toContain('smart-answer');
     expect(toolNames).toContain('notify');
+    expect(toolNames).toContain('schedule');
+    expect(toolNames).toContain('cancel-event');
   });
 
   test('whoami tool should have read-only, idempotent, closed-world annotations', async () => {
@@ -556,6 +662,36 @@ describe('Server capabilities', () => {
       destructiveHint: false,
       openWorldHint: true,
       idempotentHint: false,
+    });
+  });
+
+  test('schedule tool should have write, non-destructive, open-world, non-idempotent annotations', async () => {
+    const req = createRequest('tools/list');
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    const scheduleTool = data.result.tools.find((t: { name: string }) => t.name === 'schedule');
+    expect(scheduleTool.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: true,
+      idempotentHint: false,
+    });
+  });
+
+  test('cancel-event tool should have write, destructive, open-world, idempotent annotations', async () => {
+    const req = createRequest('tools/list');
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    const cancelEventTool = data.result.tools.find(
+      (t: { name: string }) => t.name === 'cancel-event',
+    );
+    expect(cancelEventTool.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: true,
+      idempotentHint: true,
     });
   });
 

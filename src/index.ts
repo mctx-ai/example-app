@@ -35,13 +35,17 @@ const server = createServer({
     "Use 'greet' for a hello (customizable via GREETING env var), " +
     "'whoami' to retrieve the authenticated mctx user ID (ctx.userId), " +
     "'calculate' for math, 'analyze' for progress-tracked analysis, " +
-    "'smart-answer' for LLM-assisted Q&A, and 'notify' to push a custom " +
-    'message as a real-time channel event into the connected Claude Code session. ' +
+    "'smart-answer' for LLM-assisted Q&A, 'notify' to push a custom " +
+    'message as a real-time channel event into the connected Claude Code session, ' +
+    "'schedule' to deliver a deferred channel event at a future ISO 8601 timestamp " +
+    '(with optional correlation key for deduplication), and ' +
+    "'cancel-event' to cancel a pending scheduled event by its eventId. " +
     "Resources include docs://readme and user://{userId}. Prompts include 'code-review' " +
     "and 'debug'. " +
     'Channel events (ctx.emit()) let this App push one-way notifications without ' +
-    'the client polling — notify demonstrates the pattern explicitly, and greet fires ' +
-    'a greeting event as a side-effect. ' +
+    'the client polling — notify demonstrates immediate delivery, schedule demonstrates ' +
+    'deferred delivery, and greet fires a greeting event as a side-effect. ' +
+    "Use schedule then cancel-event (with the returned eventId) to manage pending events. " +
     'Channel events only deliver when running on mctx; they no-op silently in local dev and HTTP transport.',
 });
 
@@ -74,7 +78,11 @@ const greet: ToolHandler = (args, _ask, ctx) => {
   // emit is fire-and-forget — it runs via ctx.waitUntil() and does not block
   // the tool response. The greeting event is a side-effect; the caller receives
   // the return value below before the event is dispatched.
-  // ctx.emit no-ops silently when MCTX env vars are absent (local dev / HTTP transport).
+  // ctx.emit works automatically on the mctx platform with no env var configuration —
+  // it sets X-Mctx-Event response headers read by the dispatch worker.
+  // No-ops silently in local dev and HTTP transport.
+  // The returned eventId is intentionally discarded here — this is fire-and-forget;
+  // the greeting event is not something the caller needs to track or cancel.
   if (ctx) {
     ctx.emit(`Greeted ${trimmedName}`, {
       eventType: 'greeting',
@@ -96,7 +104,7 @@ greet.input = {
 };
 // readOnlyHint: false — fires a channel event via emit() as a side-effect; not purely read-only
 // destructiveHint: false — cannot modify or delete anything
-// openWorldHint: true  — emit() calls the mctx events API, an external network endpoint
+// openWorldHint: true  — emit() sets X-Mctx-Event response headers read by the dispatch worker
 // idempotentHint: true  — the greeting string return is idempotent; the event is fire-and-forget
 greet.annotations = {
   readOnlyHint: false,
@@ -335,8 +343,10 @@ server.tool('smart-answer', smartAnswer);
 // session (or any mctx channel subscriber). It runs via ctx.waitUntil() so
 // the tool response is returned to the client immediately — emit never blocks.
 //
-// ctx.emit() no-ops silently when the MCTX env vars are absent, so callers
-// do not need to handle network failures or guard against missing configuration.
+// ctx.emit() works automatically on the mctx platform with no configuration —
+// it sets X-Mctx-Event response headers that the dispatch worker reads. No env
+// vars are needed. It no-ops silently in local dev and HTTP transport, so callers
+// do not need to handle failures or guard against missing configuration.
 //
 // Meta keys must match [a-zA-Z0-9_]+ — hyphens are silently dropped by Claude Code.
 //
@@ -355,31 +365,26 @@ server.tool('smart-answer', smartAnswer);
  * reference the event after dispatch. The eventId is only present when running on
  * mctx; it is undefined in local dev and HTTP transport.
  */
-export const notify: ToolHandler = async (args, _ask, ctx) => {
+export const notify: ToolHandler = (args, _ask, ctx) => {
   const { message } = args as { message: string };
   const trimmedMessage = message.trim();
 
   log.info(`Emitting channel event: ${trimmedMessage}`);
 
-  // ctx.emit no-ops silently when MCTX env vars are absent (local dev / HTTP transport).
-  // ctx.emit() returns Promise<string> — the eventId assigned by the mctx events service.
-  // Capture it here to demonstrate the new API and include it in the confirmation.
-  let eventId: string | undefined;
+  // ctx.emit works automatically on the mctx platform (no env vars needed) —
+  // it sets X-Mctx-Event response headers read by the dispatch worker.
+  // No-ops silently in local dev and HTTP transport.
+  // emit() returns the eventId synchronously — capture it to return to the caller
+  // so they can pass it to cancel-event if needed.
   if (ctx) {
-    eventId = (await ctx.emit(trimmedMessage, {
+    const eventId = ctx.emit(trimmedMessage, {
       eventType: 'notification',
       meta: { source: 'example_server' },
-    })) as unknown as string | undefined;
-    if (eventId) {
-      log.info({ eventId }, 'Channel event dispatched');
-    }
+    });
+    return `Notification sent: "${trimmedMessage}" (eventId: ${eventId})`;
   }
 
-  const confirmation = eventId
-    ? `Notification sent: "${trimmedMessage}" (eventId: ${eventId})`
-    : `Notification sent: "${trimmedMessage}"`;
-
-  return confirmation;
+  return `Notification sent: "${trimmedMessage}"`;
 };
 notify.description =
   'Pushes a custom message as a real-time channel event into the connected Claude Code session. ' +
@@ -394,7 +399,7 @@ notify.input = {
 };
 // readOnlyHint: false  — produces a side-effect (channel push); not purely read-only
 // destructiveHint: false — pushes a notification; cannot delete or corrupt any data
-// openWorldHint: true  — calls the mctx events API, which is an external network endpoint
+// openWorldHint: true  — sets X-Mctx-Event response headers read by the dispatch worker
 // idempotentHint: false — each call pushes a new, distinct event; not safe to deduplicate
 notify.annotations = {
   readOnlyHint: false,
@@ -403,6 +408,120 @@ notify.annotations = {
   idempotentHint: false,
 };
 server.tool('notify', notify);
+
+/**
+ * Scheduled channel event: delivers a message at a future ISO 8601 timestamp.
+ *
+ * Demonstrates the deliverAt and key options of ctx.emit(). The returned eventId
+ * can be passed to cancel-event to abort delivery before it fires.
+ *
+ * The optional key is a developer-supplied correlation identifier for deduplication
+ * (e.g., "deploy_123"). UUIDs are not valid keys because they contain hyphens —
+ * key must match /^[a-zA-Z0-9_]+$/. If key is not provided, the event has no
+ * deduplication key.
+ */
+export const schedule: ToolHandler = async (args, _ask, ctx) => {
+  const { message, deliverAt, key } = args as {
+    message: string;
+    deliverAt: string;
+    key?: string;
+  };
+
+  log.info(`Scheduling channel event for ${deliverAt}: ${message}`);
+
+  if (!ctx) {
+    return `Event scheduled for ${deliverAt} (eventId: unavailable — not running on mctx)`;
+  }
+
+  const options: { eventType: string; deliverAt: string; meta: Record<string, string>; key?: string } = {
+    eventType: 'scheduled',
+    deliverAt,
+    meta: { source: 'example_server' },
+  };
+  if (key !== undefined && key !== '') {
+    options.key = key;
+  }
+
+  const eventId = ctx.emit(message, options);
+
+  return `Event scheduled for ${deliverAt} (eventId: ${eventId})`;
+};
+schedule.description =
+  'Schedules a channel event for deferred delivery at a future ISO 8601 timestamp. ' +
+  'Demonstrates scheduled delivery via ctx.emit() with the deliverAt option. ' +
+  'The optional key is a correlation identifier for deduplication (must match /^[a-zA-Z0-9_]+$/). ' +
+  'Returns the eventId synchronously — pass it to cancel-event to abort delivery before it fires.';
+schedule.input = {
+  message: T.string({
+    required: true,
+    description: 'Message to deliver as a channel event',
+    minLength: 1,
+    maxLength: 500,
+  }),
+  deliverAt: T.string({
+    required: true,
+    description: 'ISO 8601 timestamp for scheduled delivery (e.g., 2025-12-31T23:59:59Z)',
+  }),
+  key: T.string({
+    description:
+      'Optional correlation key for deduplication (must match /^[a-zA-Z0-9_]+$/). ' +
+      'Silently ignored if invalid.',
+    pattern: '^[a-zA-Z0-9_]+$',
+  }),
+};
+// readOnlyHint: false — produces a side-effect (schedules a future channel event); not read-only
+// destructiveHint: false — schedules a delivery; cannot delete or corrupt any data
+// openWorldHint: true  — sets X-Mctx-Event response headers read by the dispatch worker
+// idempotentHint: false — each call schedules a new distinct event; not safe to deduplicate
+schedule.annotations = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  openWorldHint: true,
+  idempotentHint: false,
+};
+server.tool('schedule', schedule);
+
+/**
+ * Cancel a pending scheduled channel event by its eventId.
+ *
+ * Demonstrates ctx.cancel() — the counterpart to ctx.emit() with deliverAt.
+ * The eventId is the string returned by a prior call to schedule or notify.
+ * Cancelling an event that has already been delivered or does not exist is safe
+ * (idempotent) — the dispatch worker ignores unknown eventIds.
+ */
+export const cancelEvent: ToolHandler = async (args, _ask, ctx) => {
+  const { eventId } = args as { eventId: string };
+
+  log.info(`Cancelling channel event: ${eventId}`);
+
+  if (ctx) {
+    ctx.cancel(eventId);
+  }
+
+  return `Event ${eventId} cancelled`;
+};
+cancelEvent.description =
+  'Cancels a pending scheduled channel event by its eventId. ' +
+  'Demonstrates ctx.cancel() — pass the eventId returned by schedule or notify. ' +
+  'Cancelling an already-delivered or non-existent event is safe (idempotent).';
+cancelEvent.input = {
+  eventId: T.string({
+    required: true,
+    description: 'Event ID to cancel (as returned by schedule or notify)',
+    minLength: 1,
+  }),
+};
+// readOnlyHint: false — produces a side-effect (cancels a pending event); not read-only
+// destructiveHint: true  — cancels a pending event; the scheduled delivery is permanently aborted
+// openWorldHint: true  — sets X-Mctx-Cancel response headers read by the dispatch worker
+// idempotentHint: true  — cancelling the same eventId twice is safe; no additional side effects
+cancelEvent.annotations = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  openWorldHint: true,
+  idempotentHint: true,
+};
+server.tool('cancel-event', cancelEvent);
 
 // ─── Resources ───────────────────────────────────────────────────────
 //
