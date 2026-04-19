@@ -607,9 +607,9 @@ Write instructions for a machine that needs clear routing signals:
 - Be explicit about capabilities and constraints
 - Concise is better than comprehensive — the AI will learn tool details from the schema
 
-### README.md — Audience: Human subscribers
+### README.md — Audience: Human users
 
-`README.md` is displayed on the App's public mctx page as the subscriber-facing product page. People evaluating whether to subscribe to this App, or current subscribers looking for usage guidance, read this file.
+`README.md` is displayed on the App's public mctx page as the user-facing product page. People evaluating whether to use this MCP server, or current users looking for usage guidance, read this file.
 
 Write the README for humans who want to understand what the App offers and how to use it:
 - Lead with the value proposition

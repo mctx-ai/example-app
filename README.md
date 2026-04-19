@@ -1,8 +1,10 @@
 <img src="https://mctx.ai/brand/logo-purple.png" alt="mctx" width="120">
 
-# Example App
+# Example MCP Server
 
-The comprehensive reference implementation for [`@mctx-ai/app`](https://github.com/mctx-ai/app). Every framework capability in one well-commented file — clone it, study it, fork it as a template for your own App.
+> mctx — The best way to Build an MCP Server
+
+The comprehensive reference implementation for [`@mctx-ai/app`](https://github.com/mctx-ai/app). Every framework capability in one well-commented file — clone it, study it, fork it as a template for your own MCP server.
 
 ---
 
@@ -13,9 +15,9 @@ The comprehensive reference implementation for [`@mctx-ai/app`](https://github.c
 **Tool Patterns**
 - **Sync string return** — `greet`: receives args, returns a formatted string; demonstrates environment variable configuration via `GREETING`
 - **Object return** — `calculate`: returns a structured result object (auto-serialized to JSON); demonstrates input validation and error throwing
-- **Generator with progress** — `analyze`: yields progress notifications via `createProgress()`; demonstrates `GeneratorToolHandler`
-- **LLM sampling** — `smart-answer`: delegates to the client's LLM via the `ask` parameter; demonstrates graceful fallback when sampling is unavailable
-- **User identity via ctx** — `whoami`: reads `ctx.userId`, the stable mctx subscriber ID injected server-side by the platform; demonstrates graceful degradation outside mctx
+- **Progress notifications** — `analyze`: emits progress via `res.progress(current, total)`; demonstrates streaming updates during long-running operations
+- **LLM sampling** — `smart-answer`: delegates to the client's LLM via `res.ask`; demonstrates graceful fallback when sampling is unavailable
+- **User identity via context** — `whoami`: reads `mctx.userId`, the stable mctx user ID injected server-side by the platform; demonstrates graceful degradation outside mctx
 
 **Resource Patterns**
 - **Static URI** — `docs://readme`: exact URI, no parameters, returns plain text
@@ -30,16 +32,6 @@ The comprehensive reference implementation for [`@mctx-ai/app`](https://github.c
 - **Structured logging** — `log.info`, `log.debug`, `log.warning`, `log.error`, and `log.notice` throughout
 - **Environment variable configuration** — reads `process.env.GREETING` lazily inside the handler (not at module scope)
 - **Comprehensive test coverage** — `src/index.test.ts` tests every tool, resource, and prompt via JSON-RPC 2.0 requests
-
-**Channel Events (Real-Time Push)**
-
-Ideal for real-time notifications, build status updates, background task completion alerts, and other events that don't require a response. See [Usage in Conversation](#usage-in-conversation) for example phrases.
-
-- **One-way push pattern** — `ctx.emit()` lets tools push real-time notifications into Claude Code sessions without the client polling. Handlers receive `(args, ask, ctx)` where `ctx.emit` sends events; the call is fire-and-forget and delivery to Claude Code happens asynchronously via `ctx.waitUntil()` without blocking the tool response
-- **`notify` tool** — dedicated demo of the channel pattern: receives a message string, emits it as a `notification` event with `source: example_server` meta, and returns a confirmation string to the caller
-- **`greet` tool enhancement** — fires a `greeting` event as a side-effect every time someone is greeted, showing how emit integrates naturally into existing tools
-
-> **Requirements:** Channel events require the mctx thin client plugin and Claude Code with channel support. The environment variables `MCTX_EVENTS_ENDPOINT`, `MCTX_SERVER_ID`, and `MCTX_EVENTS_SECRET` are auto-injected by mctx at runtime — developers do not set these manually. In local dev, these vars are absent and `ctx.emit()` gracefully no-ops.
 
 ---
 
@@ -69,10 +61,6 @@ Once connected to an MCP client, try phrases like these:
 - "Review my code" — invokes the `code-review` prompt with a code snippet
 - "Help me debug this stack trace" — invokes the `debug` prompt with an error and optional context
 
-**Channel Events**
-- "Send me a notification saying 'Build complete'" — calls `notify`, which pushes the message as a real-time channel event into your Claude Code session
-- "Greet Alice" — calls `greet` and also fires a `greeting` channel event as a side-effect
-
 ---
 
 ## Example Responses
@@ -94,16 +82,11 @@ analyze(topic: "quantum computing")
 smart-answer(question: "What is the capital of France?")
 → "Question: What is the capital of France?\n\nAnswer: Paris."
 
-notify(message: "Build complete")
-→ "Notification sent: \"Build complete\""
-→ [channel event pushed to Claude Code session: type=notification, source=example_server]
-  (the channel event appears as a real-time notification in the Claude Code session)
-
 Read URI: docs://readme
-→ "Welcome to the example App built with @mctx-ai/app..."
+→ "Welcome to the example MCP server built with @mctx-ai/app..."
 
 Read URI: user://42
-→ { "id": "42", "name": "User 42", "joined": "2024-01-01", "plan": "pro" }
+→ { "id": "42", "name": "User 42", "joined": "2024-01-01", "role": "developer" }
 
 code-review(code: "const x = eval(input)", language: "javascript")
 → "Please review this javascript for bugs, security issues, and improvements:..."
@@ -185,17 +168,13 @@ npm run format:check
 
 **`GREETING`** — Customizes the greeting in the `greet` tool (default: `"Hello"`). Set `GREETING="Howdy"` to get `"Howdy, Alice!"`.
 
-**Channel event variables (auto-injected by mctx — do not set manually)**
-
-`MCTX_EVENTS_ENDPOINT`, `MCTX_SERVER_ID`, and `MCTX_EVENTS_SECRET` are injected by the mctx platform at runtime. `ctx.emit()` automatically detects and uses these variables with no developer configuration needed — the framework wires them up internally and passes a ready-to-use `ctx` to every handler. In local dev, these vars are absent and `ctx.emit()` gracefully no-ops, so your tools work the same locally as on mctx (without actually pushing channel events).
-
 ---
 
 ## Project Structure
 
 ```
 src/index.ts        → Server implementation — all capabilities in one file
-  ├─ Tools          → greet, whoami, calculate, analyze, smart-answer, notify
+  ├─ Tools          → greet, whoami, calculate, analyze, smart-answer
   ├─ Resources      → docs://readme (static), user://{userId} (dynamic)
   ├─ Prompts        → code-review (single-message), debug (multi-message)
   └─ Export         → fetch handler for JSON-RPC 2.0 over HTTP
@@ -228,20 +207,20 @@ Do not edit the `release` branch directly. Do not commit `dist/index.js` on `mai
 
 ---
 
-## Making Your App Discoverable
+## Making Your MCP Server Discoverable
 
-Three `package.json` fields and `README.md` determine how developers find your App.
+Three `package.json` fields and `README.md` determine how developers find your MCP server.
 
 - **`description`** — Appears in the MCP Community Registry (truncates at ~100–150 chars) and on your mctx.ai page. Front-load the most important information.
 - **`homepage`** — Clickable link on your public mctx.ai page. Point it at your GitHub repo or docs site.
-- **`README.md`** — Becomes the documentation on your mctx.ai page and is indexed by Context7 for AI assistant discovery. Lead with what the App does; the first ~4,000 characters are what AI assistants use to understand and recommend it.
+- **`README.md`** — Becomes the documentation on your mctx.ai page and is indexed by Context7 for AI assistant discovery. Lead with what the MCP server does; the first ~4,000 characters are what AI assistants use to understand and recommend it.
 
 ---
 
 ## Learn More
 
 - [`@mctx-ai/app`](https://github.com/mctx-ai/app) — Framework documentation and API reference
-- [docs.mctx.ai](https://docs.mctx.ai) — Platform guides for deploying and managing your Apps
-- [mctx.ai](https://mctx.ai) — Host your App for free
-- [MCP Specification](https://modelcontextprotocol.io) — The protocol spec this App implements
+- [docs.mctx.ai](https://docs.mctx.ai) — Platform guides for deploying and managing your MCP servers
+- [mctx.ai](https://mctx.ai) — Host your MCP server for free
+- [MCP Specification](https://modelcontextprotocol.io) — The protocol spec this MCP server implements
 
