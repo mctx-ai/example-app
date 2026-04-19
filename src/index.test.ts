@@ -1,5 +1,15 @@
 import { describe, test, expect } from 'vitest';
-import server, { smartAnswer, whoami, notify, schedule, cancelEvent } from './index.js';
+import server, { smartAnswer, whoami } from './index.js';
+import type { AskFunction } from '@mctx-ai/mcp';
+
+// Local interface for mock res objects used in direct handler invocation tests.
+// Mirrors the shape of @mctx-ai/mcp's Response without importing the conflicting name.
+interface MockRes {
+  send: (value: unknown) => void;
+  progress: (current: number, total?: number) => void;
+  ask: AskFunction | null;
+  readonly result: unknown;
+}
 
 // Helper to create JSON-RPC 2.0 request
 function createRequest(method: string, params: Record<string, unknown> = {}) {
@@ -15,10 +25,30 @@ function createRequest(method: string, params: Record<string, unknown> = {}) {
   });
 }
 
-// Helper to parse JSON-RPC response
-async function getResponse(response: Response) {
+// Helper to parse JSON-RPC response.
+// Typed as `any` because `server.fetch` returns `Promise<Response>` where Response is
+// the @mctx-ai/mcp output-port type, not the web fetch Response — but at runtime the
+// value has a .json() method. Using `any` avoids the type name conflict.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getResponse(response: any) {
   const data = await response.json();
   return data;
+}
+
+// Helper to create a mock res object for direct handler invocation
+function createMockRes(overrides: Partial<Omit<MockRes, 'result'>> = {}): MockRes {
+  let captured: unknown;
+  return {
+    send(value: unknown) {
+      captured = value;
+    },
+    progress() {},
+    ask: null,
+    get result() {
+      return captured;
+    },
+    ...overrides,
+  };
 }
 
 // ─── Tools Tests ────────────────────────────────────────────────────
@@ -80,9 +110,9 @@ describe('Tool: greet', () => {
 });
 
 describe('Tool: whoami', () => {
-  // In HTTP/stateless transport ctx is not injected, so ctx.userId is unavailable.
+  // In HTTP/stateless transport mctx.userId is unavailable.
   // The tool must return a graceful fallback message rather than throwing.
-  test('should return graceful message when ctx.userId is unavailable (HTTP transport)', async () => {
+  test('should return graceful message when mctx.userId is unavailable (HTTP transport)', async () => {
     const req = createRequest('tools/call', {
       name: 'whoami',
       arguments: {},
@@ -105,28 +135,31 @@ describe('Tool: whoami', () => {
     expect(data.result.isError).toBeFalsy();
   });
 
-  // The ctx-available path cannot go through server.fetch() (HTTP transport never
-  // injects ctx). These tests invoke the exported handler directly with a mock ctx
-  // to cover the authenticated code path.
+  // The mctx-available path cannot go through server.fetch() (HTTP transport never
+  // injects mctx.userId). These tests invoke the exported handler directly with a mock
+  // mctx and res to cover the authenticated code path.
 
-  test('should return the user ID when ctx.userId is present', () => {
-    const mockCtx = { userId: 'user_abc123' };
-    const result = whoami({}, undefined, mockCtx);
+  test('should return the user ID when mctx.userId is present', () => {
+    const mockMctx = { userId: 'user_abc123' };
+    const mockRes = createMockRes();
+    whoami(mockMctx, {}, mockRes);
 
-    expect(result).toContain('user_abc123');
-    expect(result).toContain('stable across all your devices and sessions');
+    expect(mockRes.result).toContain('user_abc123');
+    expect(mockRes.result).toContain('stable across all your devices and sessions');
   });
 
-  test('should return graceful message when ctx is undefined', () => {
-    const result = whoami({}, undefined, undefined);
+  test('should return graceful message when mctx is empty', () => {
+    const mockRes = createMockRes();
+    whoami({}, {}, mockRes);
 
-    expect(result).toContain('No mctx user ID is available');
+    expect(mockRes.result).toContain('No mctx user ID is available');
   });
 
-  test('should return graceful message when ctx.userId is missing', () => {
-    const result = whoami({}, undefined, {});
+  test('should return graceful message when mctx.userId is missing', () => {
+    const mockRes = createMockRes();
+    whoami({}, {}, mockRes);
 
-    expect(result).toContain('No mctx user ID is available');
+    expect(mockRes.result).toContain('No mctx user ID is available');
   });
 });
 
@@ -224,8 +257,8 @@ describe('Tool: analyze', () => {
 });
 
 describe('Tool: smart-answer', () => {
-  // In HTTP/stateless transport the framework passes ask=null to handlers,
-  // so these tests exercise the fallback path. The sampling path (ask != null)
+  // In HTTP/stateless transport the framework passes res.ask=null to handlers,
+  // so these tests exercise the fallback path. The sampling path (res.ask != null)
   // is exercised in streaming transports (WebSocket/SSE) at runtime.
   test('should include the question in the response', async () => {
     const req = createRequest('tools/call', {
@@ -275,170 +308,32 @@ describe('Tool: smart-answer', () => {
     expect(data.result.isError).toBeFalsy();
   });
 
-  // The ask-available path cannot go through server.fetch() (HTTP transport always
-  // passes ask=null). These tests invoke the exported handler directly with a mock
-  // ask function to cover that code path.
+  // The res.ask-available path cannot go through server.fetch() (HTTP transport always
+  // passes res.ask=null). These tests invoke the exported handler directly with a mock
+  // res that has an ask function to cover that code path.
 
-  test('should return LLM response content when ask is available and succeeds', async () => {
-    const mockAsk = async () => 'Paris is the capital of France.';
-    const result = await smartAnswer({ question: 'What is the capital of France?' }, mockAsk);
-
-    expect(result).toContain('What is the capital of France?');
-    expect(result).toContain('Paris is the capital of France.');
-    expect(result).toContain('Question:');
-    expect(result).toContain('Answer:');
-  });
-
-  test('should propagate error when ask throws', async () => {
-    const mockAsk = async () => {
-      throw new Error('Sampling failed: model unavailable');
-    };
-
-    await expect(smartAnswer({ question: 'What is TypeScript?' }, mockAsk)).rejects.toThrow(
-      'Sampling failed: model unavailable',
-    );
-  });
-});
-
-// ─── Channel Events Tests ────────────────────────────────────────────
-
-describe('Tool: notify', () => {
-  // ctx.emit() is fire-and-forget — the channel push is a side-effect tested
-  // at the framework level. These tests validate only the tool return value.
-  test('should return a confirmation string containing the message', async () => {
-    const req = createRequest('tools/call', {
-      name: 'notify',
-      arguments: { message: 'Hello from the test suite' },
+  test('should return LLM response content when res.ask is available and succeeds', async () => {
+    const mockRes = createMockRes({
+      ask: async () => 'Paris is the capital of France.',
     });
-    const res = await server.fetch(req);
-    const data = await getResponse(res);
+    await smartAnswer({}, { question: 'What is the capital of France?' }, mockRes);
 
-    expect(data.result.isError).toBeFalsy();
-    expect(data.result.content[0].text).toContain('Hello from the test suite');
+    expect(mockRes.result).toContain('What is the capital of France?');
+    expect(mockRes.result).toContain('Paris is the capital of France.');
+    expect(mockRes.result).toContain('Question:');
+    expect(mockRes.result).toContain('Answer:');
   });
 
-  test('should not return an error for a valid message', async () => {
-    const req = createRequest('tools/call', {
-      name: 'notify',
-      arguments: { message: 'Test notification' },
-    });
-    const res = await server.fetch(req);
-    const data = await getResponse(res);
-
-    expect(data.result.isError).toBeFalsy();
-  });
-
-  // The handler can also be invoked directly — useful for verifying the return
-  // value without going through the JSON-RPC layer.
-  test('should return confirmation string when invoked directly', async () => {
-    const result = await notify({ message: 'Direct invocation test' });
-
-    expect(result).toContain('Direct invocation test');
-    expect(result).toContain('Notification sent');
-  });
-});
-
-describe('Tool: schedule', () => {
-  // ctx.emit() with deliverAt is the mechanism under test — verified at framework level.
-  // These tests validate the tool return value (eventId in response) and input acceptance.
-  test('should return confirmation with eventId for a scheduled event', async () => {
-    const req = createRequest('tools/call', {
-      name: 'schedule',
-      arguments: { message: 'Reminder: deploy release', deliverAt: '2025-12-31T23:59:59Z' },
-    });
-    const res = await server.fetch(req);
-    const data = await getResponse(res);
-
-    expect(data.result.isError).toBeFalsy();
-    expect(data.result.content[0].text).toContain('2025-12-31T23:59:59Z');
-    expect(data.result.content[0].text).toContain('eventId');
-  });
-
-  test('should accept deliverAt and optional key parameters', async () => {
-    const req = createRequest('tools/call', {
-      name: 'schedule',
-      arguments: {
-        message: 'Deploy notification',
-        deliverAt: '2025-06-15T10:00:00Z',
-        key: 'deploy_123',
+  test('should propagate error when res.ask throws', async () => {
+    const mockRes = createMockRes({
+      ask: async () => {
+        throw new Error('Sampling failed: model unavailable');
       },
     });
-    const res = await server.fetch(req);
-    const data = await getResponse(res);
 
-    expect(data.result.isError).toBeFalsy();
-    expect(data.result.content[0].text).toContain('2025-06-15T10:00:00Z');
-  });
-
-  test('should not return an error for valid input', async () => {
-    const req = createRequest('tools/call', {
-      name: 'schedule',
-      arguments: { message: 'Scheduled test message', deliverAt: '2025-09-01T08:00:00Z' },
-    });
-    const res = await server.fetch(req);
-    const data = await getResponse(res);
-
-    expect(data.result.isError).toBeFalsy();
-  });
-
-  // The ctx-available path cannot go through server.fetch() (HTTP transport never
-  // injects ctx). Invoke the exported handler directly with a mock ctx to cover
-  // the eventId capture path.
-  test('should capture and return eventId when ctx is available', async () => {
-    const mockCtx = {
-      emit: (_msg: string, _opts?: unknown) => 'evt_abc123',
-      cancel: (_eventId: string) => {},
-    };
-    const result = await schedule(
-      { message: 'Test', deliverAt: '2025-12-01T00:00:00Z' },
-      undefined,
-      mockCtx,
-    );
-
-    expect(result).toContain('evt_abc123');
-    expect(result).toContain('2025-12-01T00:00:00Z');
-  });
-});
-
-describe('Tool: cancel-event', () => {
-  // ctx.cancel() is verified at the framework level.
-  // These tests validate the tool return value and that it accepts valid input.
-  test('should return confirmation for a valid eventId', async () => {
-    const req = createRequest('tools/call', {
-      name: 'cancel-event',
-      arguments: { eventId: 'evt_abc123' },
-    });
-    const res = await server.fetch(req);
-    const data = await getResponse(res);
-
-    expect(data.result.isError).toBeFalsy();
-    expect(data.result.content[0].text).toContain('evt_abc123');
-    expect(data.result.content[0].text).toContain('cancelled');
-  });
-
-  test('should not return an error for valid input', async () => {
-    const req = createRequest('tools/call', {
-      name: 'cancel-event',
-      arguments: { eventId: 'evt_xyz789' },
-    });
-    const res = await server.fetch(req);
-    const data = await getResponse(res);
-
-    expect(data.result.isError).toBeFalsy();
-  });
-
-  // Invoke directly to verify the handler calls ctx.cancel with the eventId.
-  test('should call ctx.cancel with the provided eventId', async () => {
-    const cancelledIds: string[] = [];
-    const mockCtx = {
-      emit: (_msg: string, _opts?: unknown) => '',
-      cancel: (eventId: string) => { cancelledIds.push(eventId); },
-    };
-    const result = await cancelEvent({ eventId: 'evt_direct_test' }, undefined, mockCtx);
-
-    expect(cancelledIds).toContain('evt_direct_test');
-    expect(result).toContain('evt_direct_test');
-    expect(result).toContain('cancelled');
+    await expect(
+      smartAnswer({}, { question: 'What is TypeScript?' }, mockRes),
+    ).rejects.toThrow('Sampling failed: model unavailable');
   });
 });
 
@@ -452,8 +347,8 @@ describe('Resource: docs://readme', () => {
     const res = await server.fetch(req);
     const data = await getResponse(res);
 
-    expect(data.result.contents[0].text).toContain('Welcome to the example App');
-    expect(data.result.contents[0].text).toContain('@mctx-ai/app');
+    expect(data.result.contents[0].text).toContain('Welcome to the example MCP server');
+    expect(data.result.contents[0].text).toContain('@mctx-ai/mcp');
     expect(data.result.contents[0].mimeType).toBe('text/plain');
   });
 });
@@ -471,7 +366,7 @@ describe('Resource: user://{userId}', () => {
       id: '123',
       name: 'User 123',
       joined: '2024-01-01',
-      plan: 'pro',
+      role: 'developer',
     });
     expect(data.result.contents[0].mimeType).toBe('application/json');
   });
@@ -488,7 +383,7 @@ describe('Resource: user://{userId}', () => {
       id: '456',
       name: 'User 456',
       joined: '2024-01-01',
-      plan: 'pro',
+      role: 'developer',
     });
   });
 });
@@ -574,9 +469,7 @@ describe('Server capabilities', () => {
     expect(toolNames).toContain('calculate');
     expect(toolNames).toContain('analyze');
     expect(toolNames).toContain('smart-answer');
-    expect(toolNames).toContain('notify');
-    expect(toolNames).toContain('schedule');
-    expect(toolNames).toContain('cancel-event');
+    expect(toolNames).not.toContain('notify');
   });
 
   test('whoami tool should have read-only, idempotent, closed-world annotations', async () => {
@@ -593,16 +486,16 @@ describe('Server capabilities', () => {
     });
   });
 
-  test('greet tool should have write, idempotent, open-world annotations', async () => {
+  test('greet tool should have read-only, idempotent, closed-world annotations', async () => {
     const req = createRequest('tools/list');
     const res = await server.fetch(req);
     const data = await getResponse(res);
 
     const greetTool = data.result.tools.find((t: { name: string }) => t.name === 'greet');
     expect(greetTool.annotations).toMatchObject({
-      readOnlyHint: false,
+      readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
       idempotentHint: true,
     });
   });
@@ -649,50 +542,6 @@ describe('Server capabilities', () => {
       openWorldHint: true,
     });
     expect(smartAnswerTool.annotations.idempotentHint).toBeUndefined();
-  });
-
-  test('notify tool should have write, open-world, non-idempotent annotations', async () => {
-    const req = createRequest('tools/list');
-    const res = await server.fetch(req);
-    const data = await getResponse(res);
-
-    const notifyTool = data.result.tools.find((t: { name: string }) => t.name === 'notify');
-    expect(notifyTool.annotations).toMatchObject({
-      readOnlyHint: false,
-      destructiveHint: false,
-      openWorldHint: true,
-      idempotentHint: false,
-    });
-  });
-
-  test('schedule tool should have write, non-destructive, open-world, non-idempotent annotations', async () => {
-    const req = createRequest('tools/list');
-    const res = await server.fetch(req);
-    const data = await getResponse(res);
-
-    const scheduleTool = data.result.tools.find((t: { name: string }) => t.name === 'schedule');
-    expect(scheduleTool.annotations).toMatchObject({
-      readOnlyHint: false,
-      destructiveHint: false,
-      openWorldHint: true,
-      idempotentHint: false,
-    });
-  });
-
-  test('cancel-event tool should have write, destructive, open-world, idempotent annotations', async () => {
-    const req = createRequest('tools/list');
-    const res = await server.fetch(req);
-    const data = await getResponse(res);
-
-    const cancelEventTool = data.result.tools.find(
-      (t: { name: string }) => t.name === 'cancel-event',
-    );
-    expect(cancelEventTool.annotations).toMatchObject({
-      readOnlyHint: false,
-      destructiveHint: true,
-      openWorldHint: true,
-      idempotentHint: true,
-    });
   });
 
   test('should list all available resources', async () => {
