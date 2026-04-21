@@ -1,6 +1,6 @@
 {
   "name": "example-app",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Build MCP servers with @mctx-ai/mcp — study or fork this reference implementation. Covers all framework patterns: tool types (sync string, object return, generators, LLM sampling), resource URIs (static, dynamic templates), prompt formats (single-message, multi-message), tool annotations (readOnly, destructive, openWorld, idempotent), structured logging, environment variables, and test coverage. The whoami tool demonstrates user identity via mctx.userId. Includes setup.sh for quick template generation.",
   "homepage": "https://mctx.ai",
   "type": "module",
@@ -17,7 +17,7 @@
     "format:check": "prettier --check src/"
   },
   "dependencies": {
-    "@mctx-ai/mcp": "^2.0.0"
+    "@mctx-ai/mcp": "^2.0.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
